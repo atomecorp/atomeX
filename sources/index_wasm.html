@@ -8,7 +8,7 @@
 <script>
     window.addEventListener('load', async () => {
         try {
-            const response = await fetch('./app/index.rb');
+            const response = await fetch('../app/index.rb');
             const rubyCode = await response.text();
             const script = document.createElement('script');
             script.type = 'text/ruby';
