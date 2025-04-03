@@ -1,3 +1,4 @@
+puts 'Hi from Opal!!'
 require "js"
 begin
   # For Opal: we import Native to benefit from the wrapper and the [] operator
