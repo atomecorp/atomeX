@@ -5,12 +5,27 @@
 </head>
 <body>
 <h2>Wasm version</h2>
-<div id="output">-----</div>
 <script>
+    // window.addEventListener('load', async () => {
+    //     try {
+    //         const response = await fetch('../app/index.rb');
+    //         const rubyCode = await response.text();
+    //         const script = document.createElement('script');
+    //         script.type = 'text/ruby';
+    //         script.textContent = rubyCode;
+    //         document.body.appendChild(script);
+    //     } catch (error) {
+    //         console.error('Erreur:', error);
+    //     }
+    // });
     window.addEventListener('load', async () => {
         try {
             const response = await fetch('../app/index.rb');
-            const rubyCode = await response.text();
+            let rubyCode = await response.text();
+
+            // Ajouter les initialisations nécessaires au début du code
+            rubyCode = 'require "js"\n' + rubyCode;
+
             const script = document.createElement('script');
             script.type = 'text/ruby';
             script.textContent = rubyCode;
