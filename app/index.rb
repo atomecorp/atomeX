@@ -1,30 +1,23 @@
-# require "js"
-#
-# document = JS.global[:document]
-# output = document.getElementById('output')
-# output[:innerHTML] = "<h1>Hello from app/index.rb! jeezs!!! so cool!</h1> <H2>#{Time.now}</H2>"
-# puts "This goes to browser console"
-
-
-
-# Solution unifiée Opal et Ruby WASM
+require "js"
 begin
-  # Pour Opal: on a besoin d'importer le module Native explicitement
+  # Pour Opal : on importe Native pour bénéficier de l'enrobage et de l'opérateur []
   require 'native'
 rescue LoadError
   # En Ruby WASM, ce require échouera, c'est normal
 end
 
-# Harmonisation des APIs
-if defined?(Native) && !defined?(JS)
-  # Si on est dans Opal et pas de JS déjà défini
+if defined?(JS) && defined?(Native)
+  # En Opal, JS et Native sont définis : on surcharge JS.global pour enrober window avec Native
   module JS
-    def self.global
-      @global ||= Native(`window`)
+    class << self
+      alias_method :original_global, :global unless method_defined?(:original_global)
+      def global
+        @global ||= Native(`window`)
+      end
     end
   end
 elsif defined?(JS) && !defined?(Native)
-  # Si on est dans Ruby WASM et pas de Native déjà défini
+  # En Ruby WASM, si Native n'est pas défini, on le définit minimalement
   module Native
     def self.[](obj)
       obj
@@ -35,5 +28,5 @@ end
 # Utilisation unique pour les deux environnements
 doc = JS.global[:document]
 output = doc.getElementById('output')
-output[:innerHTML] = "<h1>Hello from unified code!</h1><h2>#{Time.now}</h2>"
+output[:innerHTML] = "<h1>Hello from unified code! from atome</h1><h2>#{Time.now}</h2>"
 JS.global[:console].log("Message dans la console")
