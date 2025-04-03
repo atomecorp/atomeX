@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="./package/dist/browser.script.iife.js"></script>
+</head>
+<body>
+<h2>Wasm version</h2>
+<script>
+    window.addEventListener('load', async () => {
+        try {
+            const response = await fetch('./app/index.rb');
+            const rubyCode = await response.text();
+            const script = document.createElement('script');
+            script.type = 'text/ruby';
+            script.textContent = rubyCode;
+            document.body.appendChild(script);
+        } catch (error) {
+            console.error('Erreur:', error);
+        }
+    });
+</script>
+</body>
+</html>
