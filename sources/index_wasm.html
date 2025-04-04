@@ -10,10 +10,9 @@
         try {
             // Define files to load in specific order
             const filesToLoad = [
+                '../sources/kernel.rb',     // First file to load
                 '../sources/wasm_add_on.rb', // Second file to load
-               '../sources/wasm_kernel.rb',     // First file to load
-               //  '../app/index.rb' ,        // Last file to load
-                '../sources/infos.rb',
+                '../app/index.rb'         // Last file to load
             ];
 
             // Initialize an empty string to store all Ruby code

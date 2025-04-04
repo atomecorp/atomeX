@@ -1,1 +1,1 @@
-require_relative '.sources/wasm/index.rb'
+# require_relative '.sources/wasm/index.rb'

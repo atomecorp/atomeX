@@ -23,18 +23,24 @@ XperimentWasm is a Ruby and WebAssembly project that allows Ruby code to be comp
 
 ## Installation
 
+
 1. Clone the repository:
+   ```bash
+   bundle install
+   ```
+
+2. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/XperimentWasm.git
    cd XperimentWasm
    ```
 
-2. Install the Opal gem if not already installed:
+3. Install the Opal gem if not already installed:
    ```bash
    gem install opal
    ```
 
-3. Install `rbwasm` for WASM compilation (if not already installed).
+4. Install `rbwasm` for WASM compilation (if not already installed).
 
 ---
 
@@ -109,6 +115,13 @@ For using the WebAssembly-compiled version, open `index_wasm.html` in your brows
 </body>
 </html>
 ```
+
+---
+
+
+## Running the Local Server
+
+1. ruby -run -ehttpd . -p8000
 
 ---
 

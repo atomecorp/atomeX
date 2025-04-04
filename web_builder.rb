@@ -15,8 +15,10 @@ puts "== Compiling with Opal =="
 
 # If update_mode is enabled, force a full update of the opal gem
 if update_mode
-  puts "Forcing full update of the opal gem..."
+  puts "Forcing full update of the gems..."
   system("gem update opal --no-document")
+  system("gem update nokogiri --no-document")
+  system("gem update webrick --no-document")
 else
   puts "Opal gem update skipped (option --update not used)."
 end
@@ -25,6 +27,18 @@ end
 unless system("command -v opal > /dev/null 2>&1")
   puts "Opal is not installed. Installing now..."
   system("gem install opal") || abort("Error: Failed to install opal.")
+end
+
+# Check if nokogiri is installed
+unless system("command -v nokogiri > /dev/null 2>&1")
+  puts "nokogiri is not installed. Installing now..."
+  system("gem install nokogiri") || abort("Error: Failed to install nokogiri.")
+end
+
+# Check if webrick is installed
+unless system("command -v webrick > /dev/null 2>&1")
+  puts "webrick is not installed. Installing now..."
+  system("gem install webrick") || abort("Error: Failed to install webrick.")
 end
 
 # For opal.min.js, delete the existing file if update_mode is enabled
@@ -48,7 +62,7 @@ end
 
 # Compile the Ruby application with Opal including opal-parser (for inline Ruby code)
 puts "Compiling Ruby application with Opal..."
-opal_compile_cmd = "cat sources/opal_add_on.rb sources/opal_kernel.rb sources/infos.rb | opal -r opal-parser --compile - > build/application.js"
+opal_compile_cmd = "cat  sources/opal_add_on.rb  app/index.rb  sources/kernel.rb | opal -r opal-parser --compile - > build/application.js"
 system(opal_compile_cmd)
 if $?.exitstatus == 0
   puts "Opal compilation successful! build/application.js created."
