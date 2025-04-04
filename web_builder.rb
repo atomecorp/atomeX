@@ -48,7 +48,7 @@ end
 
 # Compile the Ruby application with Opal including opal-parser (for inline Ruby code)
 puts "Compiling Ruby application with Opal..."
-opal_compile_cmd = "cat  sources/opal_add_on.rb  app/index.rb  sources/kernel.rb | opal -r opal-parser --compile - > build/application.js"
+opal_compile_cmd = "cat sources/opal_add_on.rb sources/opal_kernel.rb sources/infos.rb | opal -r opal-parser --compile - > build/application.js"
 system(opal_compile_cmd)
 if $?.exitstatus == 0
   puts "Opal compilation successful! build/application.js created."
