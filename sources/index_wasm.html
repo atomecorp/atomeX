@@ -1,48 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <title>©atome 2025</title>
     <script src="./package/dist/browser.script.iife.js"></script>
 </head>
 <body>
 <h2>Wasm version</h2>
 <script>
+    function ruby_require(filePath) {
+        return fetch(filePath)
+            .then(response => response.ok ? response.text() : Promise.reject(`Erreur: ${response.statusText}`))
+            .then(content => {
+                return content;
+            });
+    }
+
     window.addEventListener('load', async () => {
         try {
-            // Define files to load in specific order
             const filesToLoad = [
-                '../sources/kernel.rb',     // First file to load
-                '../sources/wasm_add_on.rb', // Second file to load
-                '../app/index.rb'         // Last file to load
+                '../sources/kernel.rb',
+                '../sources/wasm_add_on.rb',
+                '../app/index.rb'
             ];
 
-            // Initialize an empty string to store all Ruby code
             let combinedRubyCode = 'require "js"\n';
 
-            // Load each file in the specified order
             for (const filePath of filesToLoad) {
-                console.log(`Loading ${filePath}...`);
-                const response = await fetch(filePath);
-
-                if (!response.ok) {
-                    throw new Error(`Error loading ${filePath}: ${response.status}`);
-                }
-
-                const rubyCode = await response.text();
-                // Add a comment to indicate the beginning of the file
-                combinedRubyCode += `\n# ---- Start of file: ${filePath} ----\n`;
-                combinedRubyCode += rubyCode;
-                combinedRubyCode += `\n# ---- End of file: ${filePath} ----\n`;
+                const rubyCode = await fetch(filePath).then(r => r.ok ? r.text() : Promise.reject(`Erreur: ${r.status}`));
+                combinedRubyCode += `\n# ---- ${filePath} ----\n${rubyCode}\n`;
             }
 
-            // Create and add the script element with the combined code
             const script = document.createElement('script');
             script.type = 'text/ruby';
             script.textContent = combinedRubyCode;
             document.body.appendChild(script);
 
-            console.log('All Ruby files have been successfully loaded and compiled.');
         } catch (error) {
-            console.error('Error during loading or compilation:', error);
+            console.error('Erreur:', error);
         }
     });
 </script>
