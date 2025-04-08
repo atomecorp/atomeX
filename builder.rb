@@ -2,6 +2,9 @@
 
 # Ce script lance deux autres scripts Ruby : html_builder.rb et web_builder.rb
 
+
+# git clone https://github.com/Largo/ruby.wasm-quickstart.git
+
 # Définir les noms de fichiers
 html_builder = "html_builder.rb"
 web_builder = "web_builder.rb"

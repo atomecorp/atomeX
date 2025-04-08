@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+
+system("bundle install --gemfile=Gemfile") unless File.exist?("Gemfile.lock")
 require 'fileutils'
 require 'open-uri'
 
