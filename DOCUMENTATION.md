@@ -49,10 +49,12 @@ XperimentWasm is a Ruby and WebAssembly project that allows Ruby code to be comp
 ### Basic Compilation
 To compile the Ruby code without forcing updates:
 ```bash
-ruby ruby_builder.rb
+ruby builder.rb
 ```
 
-### Forced Update & Compilation
+
+
+<!-- ### Forced Update & Compilation
 To update all dependencies and forcefully compile everything:
 ```bash
 ruby ruby_builder.rb --update
@@ -62,9 +64,16 @@ This command will:
 - Update the Opal gem.
 - Re-download `opal.min.js`.
 - Re-download Ruby WASM (`ruby.wasm`).
-- Re-download `ruby-3.4-wasm-wasi-2.7.1.tgz`.
+- Re-download `ruby-3.4-wasm-wasi-2.7.1.tgz`. -->
 
 ---
+
+### to run
+To compile the Ruby code without forcing updates:
+```bash
+cd build
+ruby -run -e httpd . -p 9393
+```
 
 ## File Structure
 

@@ -1,45 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>©atome 2025</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <script src="./package/dist/browser.script.iife.js"></script>
 </head>
 <body>
 <h2>Wasm version</h2>
-<script>
-    function ruby_require(filePath) {
-        return fetch(filePath)
-            .then(response => response.ok ? response.text() : Promise.reject(`Erreur: ${response.statusText}`))
-            .then(content => {
-                return content;
-            });
-    }
-
-    window.addEventListener('load', async () => {
-        try {
-            const filesToLoad = [
-                '../sources/kernel.rb',
-                '../sources/wasm_add_on.rb',
-                '../app/index.rb'
-            ];
-
-            let combinedRubyCode = 'require "js"\n';
-
-            for (const filePath of filesToLoad) {
-                const rubyCode = await fetch(filePath).then(r => r.ok ? r.text() : Promise.reject(`Erreur: ${r.status}`));
-                combinedRubyCode += `\n# ---- ${filePath} ----\n${rubyCode}\n`;
-            }
-
-            const script = document.createElement('script');
-            script.type = 'text/ruby';
-            script.textContent = combinedRubyCode;
-            document.body.appendChild(script);
-
-        } catch (error) {
-            console.error('Erreur:', error);
-        }
-    });
-</script>
+    <script type="text/ruby" src="app/main.rb" data-eval="async"></script>
 </body>
 </html>

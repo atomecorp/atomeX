@@ -2,6 +2,7 @@
 # ruby_builder.rb - Script intelligent pour générer index_opal.html et index_wasm.html
 
 require 'nokogiri'
+require 'fileutils'
 
 class HtmlBuilder
   def initialize(base_path, target_paths, output_dir = 'build')
@@ -227,3 +228,11 @@ if __FILE__ == $0
     puts e.backtrace
   end
 end
+
+# now copy the app folder
+
+# Créer le dossier build s'il n'existe pas
+FileUtils.mkdir_p('./build')
+
+# Copier le dossier app vers build
+FileUtils.cp_r('./app', './build/')
