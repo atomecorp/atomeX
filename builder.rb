@@ -8,6 +8,7 @@ system("bundle install")
 # Définir les noms de fichiers
 html_builder = "html_builder.rb"
 web_builder = "web_builder.rb"
+hot_reloader= "hot_reloader.rb"
 
 # Vérifier que les fichiers existent avant de les exécuter
 unless File.exist?(html_builder)
@@ -27,6 +28,9 @@ system("ruby #{html_builder}")
 
 puts "Running #{web_builder}..."
 system("ruby #{web_builder}")
+
+puts "Running #{hot_reloader}..."
+system("ruby #{hot_reloader}")
 
 
 

@@ -7,6 +7,7 @@ source "https://rubygems.org"
 
 # Gems nécessaires
 gem 'base64'
+gem 'listen'
 gem 'ruby_wasm'
 gem 'logger'
 gem "opal"
