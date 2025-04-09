@@ -1,6 +1,8 @@
-# launcher.rb
+# builder.rb
 
 # Ce script lance deux autres scripts Ruby : html_builder.rb et web_builder.rb
+
+system("bundle install")
 
 
 # Définir les noms de fichiers
@@ -19,11 +21,14 @@ unless File.exist?(web_builder)
 end
 
 # Exécuter les scripts Ruby
+
 puts "Running #{html_builder}..."
 system("ruby #{html_builder}")
 
 puts "Running #{web_builder}..."
 system("ruby #{web_builder}")
+
+
 
 puts "Both scripts have been executed successfully."
 

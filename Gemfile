@@ -6,6 +6,9 @@ source "https://rubygems.org"
 #ruby "3.2.0"
 
 # Gems nécessaires
+gem 'base64'
+gem 'ruby_wasm'
+gem 'logger'
 gem "opal"
 gem "webrick"
 gem "nokogiri"
