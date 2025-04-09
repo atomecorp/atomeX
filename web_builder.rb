@@ -66,13 +66,13 @@ end
 puts "Compiling Ruby application with Opal..."
 opal_compile_kernel = "cat  sources/opal_add_on.rb   sources/kernel.rb | opal -r opal-parser --compile - > build/kernel.js"
 system(opal_compile_kernel)
-opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile - > build/application.js"
+# uncomment below for production
+# opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile - > build/application.js"
+# uncomment below for development
+opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile --enable-source-location - > build/application.js"
 system(opal_compile_app)
 
-# opal_compile_kernel = "cat sources/opal_add_on.rb sources/kernel.rb | opal -r opal-parser --no-opal --compile - > build/kernel.js"
-# opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile - > build/application.js"
-#  system(opal_compile_kernel)
-#  system(opal_compile_app)
+
 if $?.exitstatus == 0
   puts "Opal compilation successful! build/application.js created."
 else
