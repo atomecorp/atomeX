@@ -1,14 +1,9 @@
-alias original_require require
-def require(path)
-  begin
-    original_require(path)
-  rescue LoadError => e
-    JS.global.ruby_require(path).then do |content|
-      eval(content.to_s)
-    end.catch do |error|
-      puts "===> Erreur: #{error}"
-    end
+require "js"
+require "js/require_remote"
+
+module Kernel
+  alias_method :original_require_relative, :require_relative
+  def require_relative(path)
+    JS::RequireRemote.instance.load(path)
   end
 end
-
-require "js"

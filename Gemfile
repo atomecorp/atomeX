@@ -10,6 +10,8 @@ gem 'base64'
 gem 'listen'
 gem 'ruby_wasm'
 gem 'logger'
-gem "opal"
+gem "opal", "~> 1.7.2"
 gem "webrick"
 gem "nokogiri"
+gem "fileutils"
+gem "open-uri"

@@ -1,147 +1,85 @@
+# Documentation atomeX
 
-# XperimentWasm - Documentation
+Ce document explique la structure et le fonctionnement du projet atomeX, un environnement de développement qui prend en charge à la fois Opal (Ruby vers JavaScript) et Ruby WebAssembly.
 
-## Overview
-XperimentWasm is a Ruby and WebAssembly project that allows Ruby code to be compiled and executed both via Opal (in the browser) and WebAssembly (WASM). This project supports interactive development using Ruby with the help of Opal, and also compiling Ruby code to WebAssembly for maximum performance.
+## Structure du projet
 
-## Features
-- **Ruby Compilation via Opal:** Generates JavaScript from Ruby code using the Opal compiler.
-- **Ruby Compilation via WebAssembly:** Converts Ruby code to WebAssembly for optimized performance.
-- **Automatic Download and Update of Dependencies:** Opal, Ruby WASM, and other necessary libraries can be automatically downloaded and updated.
-- **Inline Ruby Code Support:** Allows embedding Ruby code directly in HTML files, which is then compiled by Opal.
+Le projet est organisé comme suit:
 
----
+```
+atomeX/
+├── app/               # Code Ruby de l'application
+├── build/             # Répertoire généré (ne pas modifier directement)
+│   ├── opal/          # Build Opal (JavaScript)
+│   └── wasm/          # Build WebAssembly
+├── sources/           # Fichiers source pour la compilation
+│   ├── index.html     # Template HTML de base
+│   ├── index_opal.html # Template HTML pour la version Opal
+│   ├── index_wasm.html # Template HTML pour la version WebAssembly
+│   ├── kernel.rb      # Code kernel Ruby
+│   ├── opal_add_on.rb # Extensions spécifiques à Opal
+│   └── wasm_add_on.rb # Extensions spécifiques à WebAssembly
+├── builder.rb         # Script principal de build
+├── hot_reloader.rb    # Rechargement automatique pendant le développement
+├── html_builder.rb    # Générateur de fichiers HTML
+├── web_builder.rb     # Compilateur Opal et WebAssembly
+└── Gemfile            # Dépendances Ruby
+```
 
-## Requirements
+## Utilisation
 
-- Ruby (>= 3.0)
-- Opal gem (`gem install opal`)
-- rbwasm tool for compiling to WebAssembly
-- Internet connection for downloading dependencies
+### Installation
 
----
+```bash
+bundle install
+```
 
-## Installation
+### Compilation
 
-
-1. Clone the repository:
-   ```bash
-   bundle install
-   ```
-
-2. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/XperimentWasm.git
-   cd XperimentWasm
-   ```
-
-3. Install the Opal gem if not already installed:
-   ```bash
-   gem install opal
-   ```
-
-4. Install `rbwasm` for WASM compilation (if not already installed).
-
----
-
-## Usage
-
-### Basic Compilation
-To compile the Ruby code without forcing updates:
 ```bash
 ruby builder.rb
 ```
 
+### Options de compilation
 
+- `--update` : Force la mise à jour des bibliothèques et des composants
+- `--skip-opal` : Ignore la compilation Opal
+- `--skip-wasm` : Ignore la compilation WebAssembly
+- `--serve` : Lance un serveur de développement avec rechargement à chaud
 
-<!-- ### Forced Update & Compilation
-To update all dependencies and forcefully compile everything:
+### Exemple
+
 ```bash
-ruby ruby_builder.rb --update
+# Compilation complète et démarrage d'un serveur de développement
+ruby builder.rb --serve
+
+# Mise à jour des dépendances et compilation
+ruby builder.rb --update
+
+# Compilation uniquement de la version Opal
+ruby builder.rb --skip-wasm
 ```
 
-This command will:
-- Update the Opal gem.
-- Re-download `opal.min.js`.
-- Re-download Ruby WASM (`ruby.wasm`).
-- Re-download `ruby-3.4-wasm-wasi-2.7.1.tgz`. -->
+## Architecture des versions compilées
 
----
+### Version Opal (JavaScript)
 
-### to run
-To compile the Ruby code without forcing updates:
-```bash
-cd build
-ruby -run -e httpd . -p 9393
-```
+La version Opal compile le code Ruby en JavaScript. Les fichiers principaux sont:
 
-## File Structure
+- `build/index_opal.html` : Page HTML pour la version Opal
+- `build/opal/kernel.js` : Noyau Ruby compilé
+- `build/opal/application.js` : Application compilée
+- `build/opal/opal.min.js` : Runtime Opal
 
-```
-.
-├── app/                      # Ruby source code
-│   ├── index.rb
-│   ├── index_back.rb
-├── build.sh                  # Optional build script
-├── DOCUMENTATION.md          # This documentation file
-├── index_opal.html           # HTML file for Opal execution
-├── index_wasm.html           # HTML file for WASM execution
-├── wasm_builder.rb           # Main Ruby build script
-├── build/                    # Generated files (Opal and WASM outputs)
-```
+### Version WebAssembly
 
----
+La version WebAssembly utilise Ruby WebAssembly. Les fichiers principaux sont:
 
-## HTML Integration
+- `build/index_wasm.html` : Page HTML pour la version WebAssembly
+- `build/wasm/app.wasm` : Application compilée en WebAssembly
+- `build/wasm/ruby.wasm` : Runtime Ruby WebAssembly
+- `build/wasm/package/` : Fichiers JavaScript pour l'intégration WebAssembly
 
-### Opal Version
-For using the Opal-compiled version, open `index_opal.html` in your browser:
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Opal Version</title>
-    <script src="./build/opal.min.js"></script>
-    <script src="./build/application.js"></script>
-</head>
-<body>
-    <div id="app">Opal Version Loaded</div>
-</body>
-</html>
-```
+## Hot Reloading
 
-### WebAssembly Version
-For using the WebAssembly-compiled version, open `index_wasm.html` in your browser:
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>WASM Version</title>
-    <script src="./build/package/dist/browser.script.iife.js"></script>
-</head>
-<body>
-    <div id="app">WASM Version Loaded</div>
-</body>
-</html>
-```
-
----
-
-
-## Running the Local Server
-
-1. ruby -run -ehttpd . -p8000
-
----
-
-## Troubleshooting
-
-1. Ensure all dependencies are properly installed (Ruby, Opal gem, rbwasm).
-2. Make sure you have an active internet connection if using the `--update` flag.
-3. Check for any errors displayed by the script during compilation.
-
----
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+En mode serveur (`--serve`), les modifications apportées aux fichiers dans le répertoire `app/` sont automatiquement détectées et déclenchent une recompilation de la version Opal.

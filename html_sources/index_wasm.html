@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="./wasm/package/dist/browser.script.iife.js"></script>
+</head>
+<body>
+<h2>Wasm version</h2>
+<script type="text/ruby" src="sources/wasm_add_on.rb" data-eval="async"></script>
+<script type="text/ruby" src="sources/kernel.rb" data-eval="async"></script>
+<script type="text/ruby" src="sources/infos.rb" data-eval="async"></script>
+<script type="text/ruby" src="app/index.rb" data-eval="async"></script>
+</body>
+</html>

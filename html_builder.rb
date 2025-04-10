@@ -1,60 +1,101 @@
 #!/usr/bin/env ruby
-# ruby_builder.rb - Script intelligent pour générer index_opal.html et index_wasm.html
-
+require 'optparse'
 require 'nokogiri'
 require 'fileutils'
 
+# HtmlBuilder class responsible for merging HTML files and copying static assets
 class HtmlBuilder
-  def initialize(base_path, target_paths, output_dir = 'build')
-    @base_path = base_path
-    @target_paths = target_paths
-    @output_dir = output_dir
+  def initialize(options = {})
+    # Initialize paths and directories
+    @base_path     = options[:base] || 'html_sources/index.html'
+    @target_paths  = options[:targets] || ['html_sources/index_opal.html', 'html_sources/index_wasm.html']
+    @output_dir    = options[:output_dir] || 'build'
+    @create_symlinks = options[:symlink] || false
 
-    # Créer le dossier build s'il n'existe pas
-    Dir.mkdir(@output_dir) unless Dir.exist?(@output_dir)
+    # Create necessary build directories
+    create_build_directories
   end
 
+  # Main method to build all HTML files
   def build_all
-    # Lire et parser le fichier de base
+    # Read and parse the base HTML file
     base_content = File.read(@base_path)
     base_doc = parse_html(base_content)
 
+    # Process each target file
     @target_paths.each do |target_path|
-      target_name = File.basename(target_path)
-      output_path = File.join(@output_dir, target_name)
-
-      puts "Traitement de #{target_path} pour créer #{output_path}..."
-
-      # Lire et parser le fichier cible
-      target_content = File.read(target_path)
-      target_doc = parse_html(target_content)
-
-      # Fusionner les documents
-      merged_doc = merge_documents(base_doc, target_doc)
-
-      # Écrire le résultat formaté dans le fichier de sortie
-      File.write(output_path, merged_doc.to_html)
-      puts "#{output_path} a été créé avec succès."
+      process_target_file(base_doc, target_path)
     end
+
+    # Copy static assets after HTML processing
+    copy_static_assets
   end
 
   private
 
+  # Create all necessary build directories
+  def create_build_directories
+    FileUtils.mkdir_p(File.join(@output_dir, 'opal'))
+    FileUtils.mkdir_p(File.join(@output_dir, 'wasm'))
+    puts "Created build directories in '#{@output_dir}'"
+  end
+
+  # Process a single target file and merge it with the base
+  def process_target_file(base_doc, target_path)
+    target_name = File.basename(target_path)
+    output_path = File.join(@output_dir, target_name)
+
+    puts "Processing #{target_path} to create #{output_path}..."
+
+    # Read and parse the target HTML file
+    target_content = File.read(target_path)
+    target_doc = parse_html(target_content)
+
+    # Merge the documents
+    merged_doc = merge_documents(base_doc.dup, target_doc)
+
+    # Write the formatted output to file
+    write_html_file(merged_doc, output_path)
+
+    # Create symlink if requested
+    create_symlink(output_path) if @create_symlinks
+
+    puts "#{output_path} was successfully created."
+  end
+
+  # Write HTML document to file with proper formatting
+  def write_html_file(doc, output_path)
+    File.write(output_path, doc.to_html(
+      save_with: Nokogiri::XML::Node::SaveOptions::FORMAT |
+        Nokogiri::XML::Node::SaveOptions::AS_HTML
+    ))
+  end
+
+  # Create symlink if the option is enabled
+  def create_symlink(output_path)
+    symlink_name = "#{output_path}.link"
+    FileUtils.ln_sf(output_path, symlink_name)
+    puts "Created symlink: #{symlink_name} -> #{output_path}"
+  end
+
+  # Parse HTML content safely
   def parse_html(content)
-    # Utiliser Nokogiri pour un parsing robuste du HTML
     begin
-      Nokogiri::HTML(content) { |config| config.noblanks }
+      # Use parse options to preserve whitespaces
+      Nokogiri::HTML(content, nil, 'UTF-8')
     rescue => e
-      puts "Erreur lors du parsing HTML: #{e.message}"
+      puts "Error while parsing HTML: #{e.message}"
+      # Return empty HTML document as fallback
       Nokogiri::HTML("<!DOCTYPE html><html><head></head><body></body></html>")
     end
   end
 
+  # Merge two HTML documents into one
   def merge_documents(base_doc, target_doc)
-    # Créer un nouveau document pour le résultat
+    # Create a new document for the merged content
     merged_doc = Nokogiri::HTML("<!DOCTYPE html><html><head></head><body></body></html>")
 
-    # Obtenir les nœuds importants
+    # Get references to head and body elements
     base_head = base_doc.at_css('head')
     target_head = target_doc.at_css('head')
     base_body = base_doc.at_css('body')
@@ -62,177 +103,279 @@ class HtmlBuilder
     merged_head = merged_doc.at_css('head')
     merged_body = merged_doc.at_css('body')
 
-    # 1. Fusionner les éléments de head
+    # Merge head elements
     merge_head_elements(base_head, target_head, merged_head)
 
-    # 2. Fusionner les éléments du body
+    # Merge body elements
     merge_body_elements(base_body, target_body, merged_body)
 
-    # 3. Capturer et fusionner les scripts qui sont après le body (si présents)
+    # Merge elements after body
     merge_after_body_elements(base_doc, target_doc, merged_doc)
 
-    # Formatage final
+    # Format the final document
     format_document(merged_doc)
   end
 
+  # Copy static assets from app and sources folders
+  def copy_static_assets
+    copy_directory('app', @output_dir)
+    copy_directory('sources', @output_dir)
+  end
+
+  # Helper method to copy a directory if it exists
+  def copy_directory(dir_name, destination)
+    if Dir.exist?(dir_name)
+      begin
+        FileUtils.cp_r("./#{dir_name}", "./#{destination}/")
+        puts "Static #{dir_name} folder copied from './#{dir_name}' to '#{destination}/'"
+      rescue => e
+        puts "Error while copying #{dir_name} folder: #{e.message}"
+      end
+    else
+      puts "'#{dir_name}' folder does not exist, skipping copy."
+    end
+  end
+
+  # Merge body elements from base and target documents
+  def merge_body_elements(base_body, target_body, merged_body)
+    if target_body && !is_body_empty?(target_body)
+      # If target body has content, use it
+      merged_body.inner_html = target_body.inner_html
+    elsif base_body
+      # Otherwise, use base body content
+      merged_body.inner_html = base_body.inner_html
+    end
+  end
+
+  # Merge head elements from base and target documents
   def merge_head_elements(base_head, target_head, merged_head)
     return unless base_head && merged_head
 
-    # Copier tous les éléments de la tête de base
-    base_head.children.each do |child|
-      next if child.text? && child.text.strip.empty?
-      merged_head.add_child(child.dup)
+    # Copy all base head elements
+    copy_head_elements(base_head, merged_head)
+
+    # Add target head elements, checking for duplicates
+    add_target_head_elements(target_head, merged_head) if target_head
+  end
+
+  # Copy head elements from source to destination
+  def copy_head_elements(source_head, dest_head)
+    source_head.children.each do |child|
+      next unless non_empty?(child)
+      dest_head.add_child(child.dup)
     end
+  end
 
-    # Ajouter les éléments de la tête cible qui n'existent pas déjà dans le résultat
-    if target_head
-      target_head.children.each do |child|
-        next if child.text? && child.text.strip.empty?
+  # Add target head elements, checking for duplicates
+  def add_target_head_elements(target_head, merged_head)
+    target_head.children.each do |child|
+      next unless non_empty?(child)
 
-        # Vérifier si un élément similaire existe déjà
-        exists = false
-
-        if child.element?
-          # Pour les éléments comme script, link, meta, etc.
-          if child.name == 'script' && child['src']
-            # Pour les scripts avec src, comparer les attributs src
-            exists = merged_head.css('script').any? { |s| s['src'] && s['src'] == child['src'] }
-          elsif child.name == 'link' && child['href']
-            # Pour les liens, comparer les attributs href
-            exists = merged_head.css('link').any? { |l| l['href'] && l['href'] == child['href'] }
-          elsif child.name == 'meta' && child['name']
-            # Pour les meta tags, comparer les attributs name
-            exists = merged_head.css('meta').any? { |m| m['name'] && m['name'] == child['name'] }
-          elsif child.name == 'title'
-            # Pour le titre, remplacer celui existant
-            title = merged_head.at_css('title')
-            if title
-              title.content = child.content
-              exists = true
-            end
-          end
-        end
-
-        # Ajouter l'élément s'il n'existe pas déjà
-        merged_head.add_child(child.dup) unless exists
+      if should_check_for_duplicates?(child)
+        # Only add if the element doesn't already exist
+        merged_head.add_child(child.dup) unless element_exists?(merged_head, child)
+      else
+        # Always add script tags and other elements
+        merged_head.add_child(child.dup)
       end
     end
   end
 
-  def merge_body_elements(base_body, target_body, merged_body)
-    return unless merged_body
+  # Determine if we should check for duplicates for this element type
+  def should_check_for_duplicates?(element)
+    return false unless element.element?
+    return false if element.name == 'script'
 
-    # On privilégie le contenu du body cible s'il existe et n'est pas vide
-    if target_body && !target_body.children.empty? && !is_body_empty?(target_body)
-      target_body.children.each do |child|
-        next if child.text? && child.text.strip.empty?
-        merged_body.add_child(child.dup)
-      end
-    elsif base_body
-      # Sinon on utilise le contenu du body de base
-      base_body.children.each do |child|
-        next if child.text? && child.text.strip.empty?
-        merged_body.add_child(child.dup)
-      end
-    end
+    # Check duplicates for title, meta with name, or link with href
+    (element.name == 'title') ||
+      (element.name == 'meta' && element['name']) ||
+      (element.name == 'link' && element['href'])
   end
 
+  # Check if a body node is empty (contains only whitespace)
   def is_body_empty?(body_node)
     return true unless body_node
-    # Vérifier si le body ne contient que des espaces blancs
     body_node.children.all? { |c| c.text? && c.text.strip.empty? }
   end
 
+  # Merge HTML content that appears after the closing body tag
   def merge_after_body_elements(base_doc, target_doc, merged_doc)
-    # Trouver tous les éléments qui sont après la balise body fermante
-    base_after_body = find_after_body_elements(base_doc)
-    target_after_body = find_after_body_elements(target_doc)
+    base_after_body_html = extract_after_body_html(base_doc)
+    target_after_body_html = extract_after_body_html(target_doc)
 
-    # Préférer les éléments de la cible, sinon utiliser ceux de la base
-    after_body_elements = target_after_body.empty? ? base_after_body : target_after_body
+    # Prefer target after-body content, fall back to base if empty
+    after_body_html = target_after_body_html.empty? ? base_after_body_html : target_after_body_html
 
-    # Ajouter ces éléments après le body du document fusionné
-    after_body_elements.each do |elem|
-      merged_doc.root.add_child(elem.dup)
+    # Add after-body content if it exists
+    add_after_body_content(merged_doc, after_body_html) unless after_body_html.empty?
+  end
+
+  # Add content after the body tag
+  def add_after_body_content(doc, after_body_html)
+    body_node = doc.at_css('body')
+    next_node = body_node.next_sibling
+
+    if next_node
+      next_node.add_previous_sibling(Nokogiri::HTML.fragment(after_body_html))
+    else
+      html_node = doc.at_css('html')
+      html_node.add_child(Nokogiri::HTML.fragment(after_body_html))
     end
   end
 
-  def find_after_body_elements(doc)
-    elements = []
-
-    # Cette approche est plus complexe car Nokogiri normalise le HTML
-    # Nous utilisons le HTML original pour trouver les éléments après </body>
-    if doc.to_html =~ /<\/body>(.*?)<\/html>/im
-      after_body_html = $1.to_s.strip
-      unless after_body_html.empty?
-        # Créer un fragment avec ce contenu pour le manipuler avec Nokogiri
-        fragment = Nokogiri::HTML.fragment(after_body_html)
-        elements = fragment.children
-      end
+  # Extract HTML content that appears after the closing body tag
+  def extract_after_body_html(doc)
+    html_content = doc.to_html
+    if html_content =~ /<\/body>(.*?)<\/html>/im
+      return $1.to_s
     end
-
-    elements
+    return ""
   end
 
+  # Format the document with proper DOCTYPE and essential elements
   def format_document(doc)
-    # Assurer que le doctype est correct
+    # Reset and create proper DOCTYPE
     doc.internal_subset&.remove
     doc.create_internal_subset('html', nil, nil)
 
-    # Assurer que les balises essentielles sont présentes
-    unless doc.at_css('html')
-      root = Nokogiri::XML::Node.new('html', doc)
-      doc.root = root
+    # Ensure html element exists
+    ensure_element_exists(doc, 'html', nil) do |html_node|
+      doc.root = html_node
     end
 
-    unless doc.at_css('head')
-      head = Nokogiri::XML::Node.new('head', doc)
-      doc.root.add_child(head)
-    end
+    # Ensure head element exists
+    ensure_element_exists(doc, 'head', 'html')
 
-    unless doc.at_css('body')
-      body = Nokogiri::XML::Node.new('body', doc)
-      doc.root.add_child(body)
-    end
+    # Ensure body element exists
+    ensure_element_exists(doc, 'body', 'html')
 
-    # Ajouter charset et title s'ils n'existent pas
+    # Add charset meta if not present
+    add_charset_meta(doc)
+
+    # Add title if not present
+    add_title_if_missing(doc)
+
+    return doc
+  end
+
+  # Ensure an element exists, create it if missing
+  def ensure_element_exists(doc, element_name, parent_selector)
+    unless doc.at_css(element_name)
+      new_node = Nokogiri::XML::Node.new(element_name, doc)
+      if parent_selector
+        parent = doc.at_css(parent_selector)
+        parent.add_child(new_node)
+      else
+        yield(new_node) if block_given?
+      end
+    end
+  end
+
+  # Add charset meta tag if missing
+  def add_charset_meta(doc)
     head = doc.at_css('head')
-
     unless head.at_css('meta[charset]')
       meta = Nokogiri::XML::Node.new('meta', doc)
       meta['charset'] = 'UTF-8'
       head.prepend_child(meta)
     end
+  end
 
+  # Add title if missing
+  def add_title_if_missing(doc)
+    head = doc.at_css('head')
     unless head.at_css('title')
       title = Nokogiri::XML::Node.new('title', doc)
       title.content = '©atome 2025'
       head.add_child(title)
     end
+  end
 
-    doc
+  # Check if a node is not just whitespace
+  def non_empty?(node)
+    !(node.text? && node.text.strip.empty?)
+  end
+
+  # Check if a similar element already exists in the merged head
+  def element_exists?(merged_head, child)
+    return false unless child.element?
+
+    case child.name
+    when 'link'
+      check_link_exists(merged_head, child)
+    when 'meta'
+      check_meta_exists(merged_head, child)
+    when 'title'
+      update_existing_title(merged_head, child)
+    else
+      false
+    end
+  end
+
+  # Check if a link element with the same href exists
+  def check_link_exists(merged_head, child)
+    return false unless child['href']
+    merged_head.css('link').any? { |l| l['href'] == child['href'] }
+  end
+
+  # Check if a meta element with the same name exists
+  def check_meta_exists(merged_head, child)
+    return false unless child['name']
+    merged_head.css('meta').any? { |m| m['name'] == child['name'] }
+  end
+
+  # Update existing title or return false if not exists
+  def update_existing_title(merged_head, child)
+    existing_title = merged_head.at_css('title')
+    if existing_title
+      existing_title.content = child.content
+      true
+    else
+      false
+    end
   end
 end
 
-# Exécution du script
+# --- Main execution block ---
 if __FILE__ == $0
-  base_path = 'sources/index.html'
-  target_paths = ['sources/index_opal.html', 'sources/index_wasm.html']
-  output_dir = 'build'
+  options = {}
+
+  # Parse command line options
+  OptionParser.new do |opts|
+    opts.banner = "Usage: ruby html_builder.rb [options]"
+
+    opts.on("-b", "--base PATH", "Path to base HTML file (default: html_sources/index.html)") do |b|
+      options[:base] = b
+    end
+
+    opts.on("-t", "--targets x,y,z", Array, "List of target HTML files separated by commas (default: html_sources/index_opal.html, html_sources/index_wasm.html)") do |t|
+      options[:targets] = t
+    end
+
+    opts.on("-o", "--output DIR", "Output directory (default: build)") do |o|
+      options[:output_dir] = o
+    end
+
+    opts.on("--symlink", "Create symlinks for HTML files") do
+      options[:symlink] = true
+    end
+
+    opts.on("-h", "--help", "Show help") do
+      puts opts
+      exit
+    end
+  end.parse!
 
   begin
-    builder = HtmlBuilder.new(base_path, target_paths, output_dir)
+    # Create builder instance and run the process
+    builder = HtmlBuilder.new(options)
     builder.build_all
+
+    puts "All build scripts executed successfully."
+    puts "To start the server with hot-reloading, use: ruby builder.rb --serve"
   rescue => e
-    puts "Erreur lors de l'exécution: #{e.message}"
+    puts "Error while executing: #{e.message}"
     puts e.backtrace
+    exit 1
   end
 end
-
-# now copy the app folder
-
-# Créer le dossier build s'il n'existe pas
-FileUtils.mkdir_p('./build')
-
-# Copier le dossier app vers build
-FileUtils.cp_r('./app', './build/')

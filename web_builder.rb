@@ -1,180 +1,320 @@
 #!/usr/bin/env ruby
 
-system("bundle install --gemfile=Gemfile") unless File.exist?("Gemfile.lock")
+# Builder script for Opal and WASM compilation
+# This script handles the compilation of Ruby applications to JavaScript (via Opal)
+# and WebAssembly (WASM), with options to skip either compilation step.
+
 require 'fileutils'
 require 'open-uri'
 
-# Check if the --update option is passed
-update_mode = ARGV.include?("--update")
+class BuilderScript
+  # Constants for WASM URLs
+  RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
+  RUBY_WASI_TGZ_URL = "https://github.com/ruby/ruby.wasm/releases/download/2.7.1/ruby-3.4-wasm-wasi-2.7.1.tgz"
+  # OPAL_CDN_URL = "https://cdn.opalrb.com/opal/1.7.2/opal.min.js"
 
-# Create the build directory
-FileUtils.mkdir_p("build")
+  def initialize(args)
+    # Parse command line options
+    @update_mode = args.include?("--update")
+    @skip_opal = args.include?("--skip-opal")
+    @skip_wasm = args.include?("--skip-wasm")
 
-#########################
-#  OPAL SECTION
-#########################
-puts "== Compiling with Opal =="
+    # Initialize build paths
+    @build_dir = "build"
+    @opal_dir = "#{@build_dir}/opal"
+    @wasm_dir = "#{@build_dir}/wasm"
 
-# If update_mode is enabled, force a full update of the opal gem
-if update_mode
-  puts "Forcing full update of the gems..."
-  system("gem update opal --no-document")
-  system("gem update nokogiri --no-document")
-  system("gem update webrick --no-document")
-else
-  puts "Opal gem update skipped (option --update not used)."
-end
-
-# Check if opal is installed
-unless system("command -v opal > /dev/null 2>&1")
-  puts "Opal is not installed. Installing now..."
-  system("gem install opal") || abort("Error: Failed to install opal.")
-end
-
-# Check if nokogiri is installed
-unless system("command -v nokogiri > /dev/null 2>&1")
-  puts "nokogiri is not installed. Installing now..."
-  system("gem install nokogiri") || abort("Error: Failed to install nokogiri.")
-end
-
-# Check if webrick is installed
-unless system("command -v webrick > /dev/null 2>&1")
-  puts "webrick is not installed. Installing now..."
-  system("gem install webrick") || abort("Error: Failed to install webrick.")
-end
-
-# For opal.min.js, delete the existing file if update_mode is enabled
-opal_min_js_path = "build/opal.min.js"
-if update_mode && File.exist?(opal_min_js_path)
-  puts "Option --update enabled, deleting existing file #{opal_min_js_path}..."
-  File.delete(opal_min_js_path)
-end
-
-# Download opal.min.js if it does not exist
-unless File.exist?(opal_min_js_path)
-  opal_url = "https://cdn.opalrb.com/opal/1.7.2/opal.min.js"
-  puts "Downloading opal.min.js from #{opal_url}..."
-  URI.open(opal_url) do |remote|
-    File.open(opal_min_js_path, "wb") { |file| file.write(remote.read) }
+    # Create necessary build directories
+    create_build_directories
   end
-  puts "Downloaded opal.min.js to #{opal_min_js_path}"
-else
-  puts "opal.min.js already exists, skipping download."
-end
 
-# Compile the Ruby application with Opal including opal-parser (for inline Ruby code)
-puts "Compiling Ruby application with Opal..."
-opal_compile_kernel = "cat  sources/opal_add_on.rb   sources/kernel.rb | opal -r opal-parser --compile - > build/kernel.js"
-system(opal_compile_kernel)
-# uncomment below for production
-# opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile - > build/application.js"
-# uncomment below for development
-opal_compile_app = "cat build/app/index.rb | opal --no-opal --compile --enable-source-location - > build/application.js"
-system(opal_compile_app)
+  # Main execution method
+  def run
+    # Install dependencies if needed
+    install_dependencies
 
+    # Run Opal compilation unless skipped
+    compile_opal unless @skip_opal
 
-if $?.exitstatus == 0
-  puts "Opal compilation successful! build/application.js created."
-else
-  abort("Error during Opal compilation.")
-end
+    # Run WASM compilation unless skipped
+    compile_wasm unless @skip_wasm
 
-#########################
-#  WASM SECTION
-#########################
-puts "\n== Compiling with Ruby WASM =="
-
-# Define the download URLs
-RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
-RUBY_WASI_TGZ_URL = "https://github.com/ruby/ruby.wasm/releases/download/2.7.1/ruby-3.4-wasm-wasi-2.7.1.tgz"
-
-# For Ruby WASM, delete the existing file if update_mode is enabled
-ruby_wasm_dest = "build/ruby.wasm"
-if update_mode && File.exist?(ruby_wasm_dest)
-  puts "Option --update enabled, deleting existing file #{ruby_wasm_dest}..."
-  File.delete(ruby_wasm_dest)
-end
-
-# Download Ruby WASM if it does not exist
-unless File.exist?(ruby_wasm_dest)
-  puts "Downloading Ruby WASM..."
-  wasm_archive = "build/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
-  URI.open(RUBY_WASM_URL) do |remote|
-    File.open(wasm_archive, "wb") { |file| file.write(remote.read) }
+    # Display usage instructions
+    show_usage_instructions
   end
-  puts "Extracting #{wasm_archive}..."
-  system("tar xfz #{wasm_archive} -C build")
-  FileUtils.mv("build/ruby-3.4-wasm32-unknown-wasip1-full/usr/local/bin/ruby", ruby_wasm_dest)
-  puts "Ruby WASM downloaded and moved to #{ruby_wasm_dest}"
-else
-  puts "Ruby WASM file already exists, skipping download."
-end
 
-# For ruby-3.4-wasm-wasi-2.7.1.tgz, delete the existing file if update_mode is enabled
-wasi_tgz = "build/ruby-3.4-wasm-wasi-2.7.1.tgz"
-if update_mode && File.exist?(wasi_tgz)
-  puts "Option --update enabled, deleting existing file #{wasi_tgz}..."
-  File.delete(wasi_tgz)
-end
+  private
 
-# Download ruby-3.4-wasm-wasi-2.7.1.tgz if it does not exist
-unless File.exist?(wasi_tgz)
-  puts "Downloading ruby-3.4-wasm-wasi-2.7.1.tgz..."
-  URI.open(RUBY_WASI_TGZ_URL) do |remote|
-    File.open(wasi_tgz, "wb") { |file| file.write(remote.read) }
+  # Create the necessary build directories
+  def create_build_directories
+    FileUtils.mkdir_p(@opal_dir)
+    FileUtils.mkdir_p(@wasm_dir)
   end
-  puts "Extracting #{wasi_tgz}..."
-  system("tar xfz #{wasi_tgz} -C build")
-  puts "ruby-3.4-wasm-wasi-2.7.1.tgz downloaded and extracted in the build directory."
-else
-  puts "ruby-3.4-wasm-wasi-2.7.1.tgz already exists, skipping download."
+
+  # Install dependencies using Bundler
+  def install_dependencies
+    system("bundle install") unless File.exist?("Gemfile.lock")
+
+    if @update_mode
+      puts "Forcing update of all gems via bundler..."
+      system("bundle update")
+    else
+      puts "Gem update skipped (option --update not used)."
+    end
+  end
+
+  # Compile the Ruby application with Opal
+  def compile_opal
+    puts "\n== Compiling with Opal =="
+
+    # Download or update opal.min.js
+    process_opal_js
+
+    # Compile the Ruby kernel with Opal
+    compile_opal_kernel
+
+    # Prepare app directory
+    copy_app_directory
+
+    # Compile the application with Opal
+    compile_opal_application
+  end
+
+  # Process opal.min.js (download or update)
+  def process_opal_js
+    opal_min_js_path = "#{@opal_dir}/opal.min.js"
+
+    # Delete existing file if update mode is enabled
+    if @update_mode && File.exist?(opal_min_js_path)
+      puts "Option --update enabled, deleting existing file #{opal_min_js_path}..."
+      File.delete(opal_min_js_path)
+    end
+
+    # Download opal.min.js if it doesn't exist
+    # unless File.exist?(opal_min_js_path)
+    #   puts "Downloading opal.min.js from #{OPAL_CDN_URL}..."
+    #   download_file(OPAL_CDN_URL, opal_min_js_path)
+    #   puts "Downloaded opal.min.js to #{opal_min_js_path}"
+    # else
+    #   puts "opal.min.js already exists, skipping download."
+    # end
+  end
+
+  # Compile the Ruby kernel with Opal
+  def compile_opal_kernel
+    puts "Compiling Ruby kernel with Opal..."
+    opal_compile_kernel = "cat sources/opal_add_on.rb sources/kernel.rb | bundle exec opal -r opal-parser --compile - > #{@opal_dir}/kernel.js"
+    system(opal_compile_kernel)
+  end
+
+  # Copy app directory to build
+  def copy_app_directory
+    build_app_dir = "#{@build_dir}/app"
+    FileUtils.mkdir_p(build_app_dir) unless Dir.exist?(build_app_dir)
+    FileUtils.cp_r(Dir.glob("app/*"), build_app_dir)
+  end
+
+  # Compile the Ruby application with Opal
+  def compile_opal_application
+    puts "Compiling Ruby application with Opal..."
+
+    # Récupérer le chemin du fichier source
+    source_file = "#{@build_dir}/app/index.rb"
+
+    # Définir le chemin du fichier temporaire
+    temp_file = "#{@build_dir}/app/index_temp.rb"
+
+    # Lire le contenu du fichier source
+    content = File.read(source_file)
+
+    # Remplacer require_relative par require
+    modified_content = content.gsub("require_relative", "require")
+
+    # Écrire le contenu modifié dans le fichier temporaire
+    File.write(temp_file, modified_content)
+
+    puts "Created temporary file with modified requires: #{temp_file}"
+
+    # Compiler avec Opal en utilisant le fichier temporaire
+    opal_compile_app = "cat #{temp_file} | bundle exec opal --no-opal --compile --enable-source-location - > #{@opal_dir}/index.js"
+    system(opal_compile_app)
+
+    if $?.exitstatus == 0
+      puts "Opal compilation successful! #{@opal_dir}/index.js created."
+    else
+      abort("Error during Opal compilation.")
+    end
+  end
+
+  # Compile the Ruby application with WASM
+  def compile_wasm
+    puts "\n== Compiling with Ruby WASM =="
+
+    # Download or update Ruby WASM
+    process_ruby_wasm
+
+    # Download or update Ruby WASI TGZ
+    process_ruby_wasi_tgz
+
+    # Compile the application to WASM
+    compile_app_to_wasm
+
+    # Modify the JavaScript files generated by WASM compilation
+    modify_wasm_js_files
+  end
+
+  # Process Ruby WASM (download or update)
+  def process_ruby_wasm
+    ruby_wasm_dest = "#{@wasm_dir}/ruby.wasm"
+
+    # Delete existing file if update mode is enabled
+    if @update_mode && File.exist?(ruby_wasm_dest)
+      puts "Option --update enabled, deleting existing file #{ruby_wasm_dest}..."
+      File.delete(ruby_wasm_dest)
+    end
+
+    # Download Ruby WASM if it doesn't exist
+    unless File.exist?(ruby_wasm_dest)
+      wasm_archive = "#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
+      download_and_extract_wasm(RUBY_WASM_URL, wasm_archive, ruby_wasm_dest)
+    else
+      puts "Ruby WASM file already exists, skipping download."
+    end
+  end
+
+  # Download and extract WASM archive
+  def download_and_extract_wasm(url, archive_path, dest_path)
+    puts "Downloading Ruby WASM..."
+    FileUtils.mkdir_p(File.dirname(archive_path))
+    download_file(url, archive_path)
+
+    puts "Extracting #{archive_path}..."
+    system("tar xfz #{archive_path} -C #{@wasm_dir}")
+
+    FileUtils.mkdir_p(File.dirname(dest_path))
+    FileUtils.mv("#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr/local/bin/ruby", dest_path)
+    puts "Ruby WASM downloaded and moved to #{dest_path}"
+  end
+
+  # Process Ruby WASI TGZ (download or update)
+  def process_ruby_wasi_tgz
+    wasi_tgz = "#{@wasm_dir}/ruby-3.4-wasm-wasi-2.7.1.tgz"
+
+    # Delete existing file if update mode is enabled
+    if @update_mode && File.exist?(wasi_tgz)
+      puts "Option --update enabled, deleting existing file #{wasi_tgz}..."
+      File.delete(wasi_tgz)
+    end
+
+    # Download Ruby WASI TGZ if it doesn't exist
+    unless File.exist?(wasi_tgz)
+      download_and_extract_wasi_tgz(RUBY_WASI_TGZ_URL, wasi_tgz)
+    else
+      puts "ruby-3.4-wasm-wasi-2.7.1.tgz already exists, skipping download."
+    end
+  end
+
+  # Download and extract WASI TGZ
+  def download_and_extract_wasi_tgz(url, tgz_path)
+    puts "Downloading ruby-3.4-wasm-wasi-2.7.1.tgz..."
+    FileUtils.mkdir_p(File.dirname(tgz_path))
+    download_file(url, tgz_path)
+
+    puts "Extracting #{tgz_path}..."
+    system("tar xfz #{tgz_path} -C #{@wasm_dir}")
+    puts "ruby-3.4-wasm-wasi-2.7.1.tgz downloaded and extracted in the #{@wasm_dir} directory."
+  end
+
+  # Compile the application to WASM
+  # def compile_app_to_wasm
+  #   puts "Compiling application to app.wasm..."
+  #   wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm " +
+  #     "--dir ./app::/app " +
+  #     "--dir ./#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr " +
+  #     "-o #{@wasm_dir}/app.wasm"
+  #   system(wasm_compile_cmd)
+  #
+  #   if $?.exitstatus == 0
+  #     puts "Ruby application compiled to #{@wasm_dir}/app.wasm"
+  #   else
+  #     abort("Error during WASM compilation.")
+  #   end
+  # end
+
+  def compile_app_to_wasm
+    puts "Compiling Ruby runtime to WebAssembly..."
+    output_path = "#{@wasm_dir}/ruby_runtime.wasm"
+
+    wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm " +
+      "--dir ./#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr " +
+      "-o #{output_path}"
+
+    puts "Executing: #{wasm_compile_cmd}"
+    system(wasm_compile_cmd)
+
+    if $?.exitstatus == 0
+      puts "Ruby runtime successfully compiled to #{output_path}"
+      return true
+    else
+      abort("Error during Ruby runtime WASM compilation.")
+    end
+  end
+
+  # Modify the JavaScript files generated by WASM compilation
+  def modify_wasm_js_files
+    package_dist_dir = "#{@wasm_dir}/package/dist"
+    iife_js_file_path = "#{package_dist_dir}/browser.script.iife.js"
+    umd_js_file_path = "#{package_dist_dir}/browser.script.umd.js"
+
+    # Make sure the package directory structure exists
+    FileUtils.mkdir_p(File.dirname(iife_js_file_path))
+    FileUtils.mkdir_p(File.dirname(umd_js_file_path))
+
+    # Modify IIFE JavaScript file
+    modify_js_file(
+      iife_js_file_path,
+      /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
+      'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);'
+    )
+
+    # Modify UMD JavaScript file
+    modify_js_file(
+      umd_js_file_path,
+      /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
+      'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);'
+    )
+  end
+
+  # Modify a JavaScript file with the given pattern and replacement
+  def modify_js_file(file_path, pattern, replacement)
+    if File.exist?(file_path)
+      puts "Modifying JavaScript file #{file_path}..."
+      content = File.read(file_path)
+      new_content = content.gsub(pattern, replacement)
+      File.write(file_path, new_content)
+      puts "JavaScript file #{file_path} modified successfully!"
+    else
+      puts "Warning: JavaScript file #{file_path} not found. Check if WASM compilation generated the expected files."
+    end
+  end
+
+  # Display usage instructions
+  def show_usage_instructions
+    puts "\n== Usage Instructions =="
+    puts "To use the Opal version: open #{@build_dir}/index_opal.html in your browser."
+    puts "To use the WASM version: open #{@build_dir}/index_wasm.html in your browser."
+  end
+
+  # Helper method to download a file from a URL
+  def download_file(url, destination)
+    URI.open(url) do |remote|
+      File.open(destination, "wb") { |file| file.write(remote.read) }
+    end
+  end
 end
 
-# Compile the application to WASM
-puts "Compiling application to app.wasm..."
-wasm_compile_cmd = "rbwasm pack build/ruby.wasm --dir ./app::/app --dir ./build/ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr -o build/app.wasm"
-system(wasm_compile_cmd)
-if $?.exitstatus == 0
-  puts "Ruby application compiled to build/app.wasm"
-else
-  abort("Error during WASM compilation.")
+# Run the script with command line arguments
+if __FILE__ == $0
+  builder = BuilderScript.new(ARGV)
+  builder.run
 end
-
-# Modify the JavaScript files generated by WASM compilation
-iife_js_file_path = "build/package/dist/browser.script.iife.js"
-umd_js_file_path = "build/package/dist/browser.script.umd.js"
-
-# Modify IIFE JavaScript file
-if File.exist?(iife_js_file_path)
-  puts "Modifying JavaScript file #{iife_js_file_path}..."
-  content = File.read(iife_js_file_path)
-  new_content = content.gsub(
-    /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
-    'const response = fetch(`./package/dist/ruby+stdlib.wasm`);'
-  )
-  File.write(iife_js_file_path, new_content)
-  puts "JavaScript file #{iife_js_file_path} modified successfully!"
-else
-  puts "Warning: JavaScript file #{iife_js_file_path} not found. Check if WASM compilation generated the expected files."
-end
-
-# Modify UMD JavaScript file
-if File.exist?(umd_js_file_path)
-  puts "Modifying JavaScript file #{umd_js_file_path}..."
-  content = File.read(umd_js_file_path)
-  new_content = content.gsub(
-    /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
-    'const response = fetch(`./package/dist/ruby+stdlib.wasm`);'
-  )
-  File.write(umd_js_file_path, new_content)
-  puts "JavaScript file #{umd_js_file_path} modified successfully!"
-else
-  puts "Warning: JavaScript file #{umd_js_file_path} not found. Check if WASM compilation generated the expected files."
-end
-
-#########################
-#  USAGE INSTRUCTIONS
-#########################
-# puts "\n== Usage Instructions =="
-# puts "To use the Opal version: open index_opal.html in your browser."
-# puts "To use the WASM version: open index_wasm.html in your browser."
