@@ -14,7 +14,7 @@ class BuilderScript
 
   def initialize(*args)
     # Parse command line options
-    @production = args.include?("production")
+    @production = args.include?(:production)
     # Initialize build paths
     @build_dir = "build"
     @opal_dir = "#{@build_dir}/opal"

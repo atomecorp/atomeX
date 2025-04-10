@@ -21,13 +21,20 @@ system("ruby #{html_builder}")
 FileUtils.mkdir_p("build")
 
 # Initialize and run the web builder
-web_builder = BuilderScript.new
+if ARGV.include? "--production"
+  puts "Running in production mode..."
+  web_builder = BuilderScript.new(:production)
+else
+  puts "Running in development mode..."
+  web_builder = BuilderScript.new
+end
+
 web_builder.run
 
 # Determine the target build mode
-if ARGV.include?('-wasm')
+if ARGV.include?('--wasm')
   mode = :wasm
-elsif ARGV.include?('-opal')
+elsif ARGV.include?('--opal')
   mode = :opal
 else
   mode = :opal

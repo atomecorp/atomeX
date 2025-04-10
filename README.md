@@ -53,9 +53,11 @@ ruby builder.rb
 ```
 
 ### Optional: you can build a specific target:
-Possible optiopn are `--opal` or `--wasm`.
+Possible options are `--opal` or `--wasm`
+
+for production build, add `--production` to the command.
 ```bash
-ruby builder.rb --wasm
+ruby builder.rb --wasm --production
 ```
 
 ---

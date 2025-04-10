@@ -1,4 +1,3 @@
-
 # atomeX Documentation
 
 This document explains the structure and functionality of the atomeX project, a development environment that supports both Opal (Ruby to JavaScript) and Ruby WebAssembly.
@@ -9,27 +8,39 @@ The project is organized as follows:
 
 ```
 atomeX/
-├── app/               # Ruby application code
-├── sources/           # Source files for compilation
-│   ├── index.html     # Base HTML template
+├── app/                # Ruby application code
+├── sources/            # Core Ruby source files
+│   ├── infos.rb        # Project information
+│   └── kernel.rb       # Ruby kernel code
+├── html_sources/       # HTML templates
+│   ├── index.html      # Base HTML template
 │   ├── index_opal.html # HTML template for Opal version
-│   ├── index_wasm.html # HTML template for WebAssembly version
-│   ├── kernel.rb      # Ruby kernel code
-│   ├── opal_add_on.rb # Opal-specific extensions
-│   └── wasm_add_on.rb # WebAssembly-specific extensions
-├── builder.rb         # Main build script
-├── hot_reloader.rb    # Auto-reloading during development
-├── html_builder.rb    # HTML file generator
-├── web_builder.rb     # Opal and WebAssembly compiler
-└── Gemfile            # Ruby dependencies
+│   └── index_wasm.html # HTML template for WebAssembly version
+├── specific/           # Runtime-specific code
+│   ├── opal/           # Opal-specific extensions
+│   │   └── opal_init.rb # Opal initialization
+│   └── wasm/           # WebAssembly-specific extensions
+│       └── wasm_init.rb # WebAssembly initialization
+├── builder.rb          # Main build script
+├── hot_reloader.rb     # Auto-reloading during development
+├── html_builder.rb     # HTML file generator
+├── web_builder.rb      # Opal and WebAssembly compiler
+└── Gemfile             # Ruby dependencies
 ```
 
 ## Usage
 
 ### Installation
 
+```bash
+# Clone the repository
+git clone https://github.com/your-username/atomeX.git
+cd atomeX
+```
 
 ### Compilation
+
+To compile the project, run:
 
 ```bash
 ruby builder.rb
@@ -37,44 +48,70 @@ ruby builder.rb
 
 ### Compilation Options
 
-- `--update` : Force update libraries and components
-- `--skip-opal` : Skip Opal compilation
-- `--skip-wasm` : Skip WebAssembly compilation
-- `--serve` : Start a development server with hot reloading
 
-### Example
+to build for production, you can use the `--production` flag:
 
 ```bash
-# Full build and start development server
-ruby builder.rb --serve
-
-# Update dependencies and build
-ruby builder.rb --update
-
-# Build only the Opal version
-ruby builder.rb --skip-wasm
+ruby builder.rb --production
 ```
 
-## Compiled Versions Architecture
+### Hot Reloading
 
-### Opal Version (JavaScript)
+The project automatically includes a hot reloading feature that watches for changes in your files and rebuilds them when necessary. To use it:
 
-The Opal version compiles Ruby code into JavaScript. Main files:
+When a file is modified, the Opal and wasm versions of the application will be automatically recompiled.
+
+## Architecture
+
+### HTML Builder
+
+The `html_builder.rb` script is responsible for:
+
+1. Taking the base HTML template from `html_sources/index.html`
+2. Merging it with runtime-specific templates (`index_opal.html` and `index_wasm.html`)
+3. Generating the final HTML files in the `build/` directory
+
+### Web Builder
+
+The `web_builder.rb` script handles the compilation process:
+
+#### Opal Compilation
+
+For the Opal version:
+1. Compiles all Ruby files from `specific/opal/`, `sources/`, and `app/` directories to JavaScript
+2. Adds script tags to the generated HTML file
+3. Outputs the compiled files to `build/opal/`
+
+#### WebAssembly Compilation
+
+For the WebAssembly version:
+1. Downloads and extracts Ruby WASM and WASI packages if they don't exist
+2. Compiles the Ruby runtime to WebAssembly
+3. Modifies generated JavaScript files to use local paths
+4. Adds script tags for Ruby files to the generated HTML
+5. Outputs the compiled files to `build/wasm/`
+
+## Compiled Output
+
+### Opal Version
+
+The Opal version compiles Ruby code into JavaScript. The main output files are:
 
 - `build/index_opal.html` : HTML page for the Opal version
-- `build/opal/kernel.js` : Compiled Ruby kernel
-- `build/opal/application.js` : Compiled application
-- `build/opal/opal.min.js` : Opal runtime
+- `build/opal/*.js` : Compiled JavaScript files
 
 ### WebAssembly Version
 
-The WebAssembly version uses Ruby WebAssembly. Main files:
+The WebAssembly version uses Ruby WASM. The main output files are:
 
 - `build/index_wasm.html` : HTML page for the WebAssembly version
-- `build/wasm/app.wasm` : Application compiled into WebAssembly
 - `build/wasm/ruby.wasm` : Ruby WebAssembly runtime
-- `build/wasm/package/` : JavaScript files for WebAssembly integration
+- `build/wasm/ruby_runtime.wasm` : Compiled application as WebAssembly
 
-## Hot Reloading
+## Development Flow
 
-In server mode (`--serve`), changes made to files in the `app/` directory are automatically detected and trigger a recompilation of the Opal version.
+1. Write your Ruby code in the `app/` directory
+2. Run `ruby builder.rb` to compile both Opal and WebAssembly versions
+3. Run the app using a local server (e.g., `ruby -run -e httpd . -p 9292`), this will load either the Opal or WebAssembly version depending on your settings
+
+
