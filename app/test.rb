@@ -1,10 +1,5 @@
-# puts "output from local required file works!"
-# puts '==========success!==============='
-#
-# require 'js'
-# JS.global[:document].write "Hello, jeezs!"
-
-
+puts '==========success!==============='
+require './app/my_file.rb'
 puts "second message from require.rb"
 doc = JS.global[:document]
 body = doc[:body]

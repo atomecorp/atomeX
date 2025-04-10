@@ -8,6 +8,6 @@
 #   end
 # end
 
-require_relative('./app/test')
+# require_relative('./app/test')
 
 JS.global[:document].write "Hello, world!"

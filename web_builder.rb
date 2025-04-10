@@ -11,10 +11,10 @@ class BuilderScript
   # Constants for WASM URLs
   RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
   RUBY_WASI_TGZ_URL = "https://github.com/ruby/ruby.wasm/releases/download/2.7.1/ruby-3.4-wasm-wasi-2.7.1.tgz"
-  # OPAL_CDN_URL = "https://cdn.opalrb.com/opal/1.7.2/opal.min.js"
 
   def initialize(args)
     # Parse command line options
+    @production = args.include?("--production")
     @update_mode = args.include?("--update")
     @skip_opal = args.include?("--skip-opal")
     @skip_wasm = args.include?("--skip-wasm")
@@ -71,7 +71,7 @@ class BuilderScript
     process_opal_js
 
     # Compile the Ruby kernel with Opal
-    compile_opal_kernel
+    compile_opal_additional_files([:opal_init, :kernel,  :infos])
 
     # Prepare app directory
     copy_app_directory
@@ -90,21 +90,26 @@ class BuilderScript
       File.delete(opal_min_js_path)
     end
 
-    # Download opal.min.js if it doesn't exist
-    # unless File.exist?(opal_min_js_path)
-    #   puts "Downloading opal.min.js from #{OPAL_CDN_URL}..."
-    #   download_file(OPAL_CDN_URL, opal_min_js_path)
-    #   puts "Downloaded opal.min.js to #{opal_min_js_path}"
-    # else
-    #   puts "opal.min.js already exists, skipping download."
-    # end
   end
 
   # Compile the Ruby kernel with Opal
-  def compile_opal_kernel
-    puts "Compiling Ruby kernel with Opal..."
-    opal_compile_kernel = "cat sources/opal_add_on.rb sources/kernel.rb | bundle exec opal -r opal-parser --compile - > #{@opal_dir}/kernel.js"
-    system(opal_compile_kernel)
+  def compile_opal_additional_files(files_to_compile)
+    if @production
+      debug=''
+    else
+      debug='--enable-source-location '
+    end
+    files_to_compile.each_with_index do |file, index|
+      puts "Compiling Ruby #{file} with Opal..."
+      if index == 0
+        opal_compile_kernel = "cat  sources/#{file}.rb | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{file}.js"
+      else
+        opal_compile_kernel = "cat  sources/#{file}.rb | bundle exec opal  --no-opal  --compile  #{debug} - > #{@opal_dir}/#{file}.js"
+
+      end
+      system(opal_compile_kernel)
+    end
+
   end
 
   # Copy app directory to build
@@ -122,21 +127,27 @@ class BuilderScript
     source_file = "#{@build_dir}/app/index.rb"
 
     # Définir le chemin du fichier temporaire
-    temp_file = "#{@build_dir}/app/index_temp.rb"
+    # temp_file = "#{@build_dir}/app/index_temp.rb"
 
     # Lire le contenu du fichier source
-    content = File.read(source_file)
+    # content = File.read(source_file)
 
     # Remplacer require_relative par require
-    modified_content = content.gsub("require_relative", "require")
+    # modified_content = content.gsub("require_relative", "require")
 
     # Écrire le contenu modifié dans le fichier temporaire
-    File.write(temp_file, modified_content)
+    # File.write(temp_file, content)
 
-    puts "Created temporary file with modified requires: #{temp_file}"
+    # puts "Created temporary file with modified requires: #{temp_file}"
 
     # Compiler avec Opal en utilisant le fichier temporaire
-    opal_compile_app = "cat #{temp_file} | bundle exec opal --no-opal --compile --enable-source-location - > #{@opal_dir}/index.js"
+    if @production
+      debug=''
+    else
+      debug='--enable-source-location '
+    end
+
+    opal_compile_app = "cat #{source_file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/index.js"
     system(opal_compile_app)
 
     if $?.exitstatus == 0
@@ -224,22 +235,6 @@ class BuilderScript
     system("tar xfz #{tgz_path} -C #{@wasm_dir}")
     puts "ruby-3.4-wasm-wasi-2.7.1.tgz downloaded and extracted in the #{@wasm_dir} directory."
   end
-
-  # Compile the application to WASM
-  # def compile_app_to_wasm
-  #   puts "Compiling application to app.wasm..."
-  #   wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm " +
-  #     "--dir ./app::/app " +
-  #     "--dir ./#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr " +
-  #     "-o #{@wasm_dir}/app.wasm"
-  #   system(wasm_compile_cmd)
-  #
-  #   if $?.exitstatus == 0
-  #     puts "Ruby application compiled to #{@wasm_dir}/app.wasm"
-  #   else
-  #     abort("Error during WASM compilation.")
-  #   end
-  # end
 
   def compile_app_to_wasm
     puts "Compiling Ruby runtime to WebAssembly..."

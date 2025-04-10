@@ -1,4 +1,5 @@
-require_relative('./app/test.rb')
+require('./app/test.rb')
+# require './app/my_file.rb'
 puts "first message from index.rb"
 doc = JS.global[:document]
 body = doc[:body]
