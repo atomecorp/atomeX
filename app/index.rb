@@ -1,6 +1,8 @@
 require('./app/test.rb')
-# require './app/my_file.rb'
+puts 'ok so amazing!!'
+
 puts "first message from index.rb"
+
 doc = JS.global[:document]
 body = doc[:body]
 output_div = doc.createElement('div')

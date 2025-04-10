@@ -7,25 +7,21 @@
 require 'fileutils'
 require 'open-uri'
 
+
 class BuilderScript
   # Constants for WASM URLs
   RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
   RUBY_WASI_TGZ_URL = "https://github.com/ruby/ruby.wasm/releases/download/2.7.1/ruby-3.4-wasm-wasi-2.7.1.tgz"
 
-  def initialize(args)
+  def initialize(*args)
     # Parse command line options
-    @production = args.include?("--production")
-    @update_mode = args.include?("--update")
-    @skip_opal = args.include?("--skip-opal")
-    @skip_wasm = args.include?("--skip-wasm")
-
+    @production = args.include?("production")
     # Initialize build paths
     @build_dir = "build"
     @opal_dir = "#{@build_dir}/opal"
     @wasm_dir = "#{@build_dir}/wasm"
 
-    # Create necessary build directories
-    create_build_directories
+
   end
 
   # Main execution method
@@ -33,17 +29,20 @@ class BuilderScript
     # Install dependencies if needed
     install_dependencies
 
+    # build directories
+    create_build_directories
+
     # Run Opal compilation unless skipped
-    compile_opal unless @skip_opal
+    compile_opal
 
     # Run WASM compilation unless skipped
-    compile_wasm unless @skip_wasm
+    compile_wasm
 
     # Display usage instructions
     show_usage_instructions
   end
 
-  private
+  # private
 
   # Create the necessary build directories
   def create_build_directories
@@ -126,21 +125,6 @@ class BuilderScript
     # Récupérer le chemin du fichier source
     source_file = "#{@build_dir}/app/index.rb"
 
-    # Définir le chemin du fichier temporaire
-    # temp_file = "#{@build_dir}/app/index_temp.rb"
-
-    # Lire le contenu du fichier source
-    # content = File.read(source_file)
-
-    # Remplacer require_relative par require
-    # modified_content = content.gsub("require_relative", "require")
-
-    # Écrire le contenu modifié dans le fichier temporaire
-    # File.write(temp_file, content)
-
-    # puts "Created temporary file with modified requires: #{temp_file}"
-
-    # Compiler avec Opal en utilisant le fichier temporaire
     if @production
       debug=''
     else
@@ -309,7 +293,7 @@ class BuilderScript
 end
 
 # Run the script with command line arguments
-if __FILE__ == $0
-  builder = BuilderScript.new(ARGV)
-  builder.run
-end
+# if __FILE__ == $0
+#   builder = BuilderScript.new(ARGV)
+#   builder.run
+# end
