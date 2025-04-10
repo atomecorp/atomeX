@@ -7,7 +7,6 @@
 require 'fileutils'
 require 'open-uri'
 
-
 class BuilderScript
   # Constants for WASM URLs
   RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
@@ -20,8 +19,6 @@ class BuilderScript
     @build_dir = "build"
     @opal_dir = "#{@build_dir}/opal"
     @wasm_dir = "#{@build_dir}/wasm"
-
-
   end
 
   # Main execution method
@@ -29,7 +26,7 @@ class BuilderScript
     # Install dependencies if needed
     install_dependencies
 
-    # build directories
+    # Create build directories
     create_build_directories
 
     # Run Opal compilation unless skipped
@@ -41,8 +38,6 @@ class BuilderScript
     # Display usage instructions
     show_usage_instructions
   end
-
-  # private
 
   # Create the necessary build directories
   def create_build_directories
@@ -62,113 +57,116 @@ class BuilderScript
     end
   end
 
+  # Add <script> tags dynamically to an HTML file
+  def add_script_tag_to_index(name, files, ruby_type=nil)
+    file_path = "build/index_#{name}.html"
+    tags = []
+
+    files.each do |file|
+      if ruby_type
+        type = "type='text/ruby'"
+        options = "data-eval='async'"
+      else
+        type = ''
+        options = "defer"
+      end
+      tags << "<script #{type} src='#{file}' #{options}></script>"
+    end
+    scripts_to_add = tags.join("\n")
+
+    content = File.read(file_path)
+
+    if content.include?('</body>')
+      modified_content = content.gsub('</body>', "</body>\n#{scripts_to_add}")
+      File.open(file_path, 'w') { |file| file.write(modified_content) }
+      puts "Scripts have been successfully added after </body>."
+    else
+      puts "Error: </body> tag not found in the file."
+    end
+  end
+
   # Compile the Ruby application with Opal
   def compile_opal
     puts "\n== Compiling with Opal =="
+    tag_content = []
 
-    # Download or update opal.min.js
-    process_opal_js
+    # Compile Opal initializer
+    opal_compiler("specific/opal/opal_init.rb", true)
+    tag_content << "./opal/opal_init.js"
 
-    # Compile the Ruby kernel with Opal
-    compile_opal_additional_files([:opal_init, :kernel,  :infos])
+    # Compile all source files
+    Dir.entries('./sources').each do |file|
+      next if file.start_with?('.')
+      opal_compiler("sources/#{file}")
+      tag_content << "./opal/#{File.basename(file, ".*")}.js"
+    end
 
-    # Prepare app directory
+    # Copy app directory
     copy_app_directory
 
-    # Compile the application with Opal
-    compile_opal_application
+    # Compile application entry point
+    opal_compiler("app/index.rb")
+    tag_content << "./opal/index.js"
+
+    # Add script tags to HTML
+    add_script_tag_to_index(:opal, tag_content)
   end
 
-  # Process opal.min.js (download or update)
-  def process_opal_js
-    opal_min_js_path = "#{@opal_dir}/opal.min.js"
+  # Compile a Ruby file with Opal
+  def opal_compiler(file, add_opal = false)
+    debug = @production ? '' : '--enable-source-location '
 
-    # Delete existing file if update mode is enabled
-    if @update_mode && File.exist?(opal_min_js_path)
-      puts "Option --update enabled, deleting existing file #{opal_min_js_path}..."
-      File.delete(opal_min_js_path)
-    end
-
-  end
-
-  # Compile the Ruby kernel with Opal
-  def compile_opal_additional_files(files_to_compile)
-    if @production
-      debug=''
+    if add_opal
+      opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
     else
-      debug='--enable-source-location '
-    end
-    files_to_compile.each_with_index do |file, index|
-      puts "Compiling Ruby #{file} with Opal..."
-      if index == 0
-        opal_compile_kernel = "cat  sources/#{file}.rb | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{file}.js"
-      else
-        opal_compile_kernel = "cat  sources/#{file}.rb | bundle exec opal  --no-opal  --compile  #{debug} - > #{@opal_dir}/#{file}.js"
-
-      end
-      system(opal_compile_kernel)
+      opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
     end
 
+    system(opal_cmd)
   end
 
-  # Copy app directory to build
+  # Copy the app directory to build directory
   def copy_app_directory
     build_app_dir = "#{@build_dir}/app"
     FileUtils.mkdir_p(build_app_dir) unless Dir.exist?(build_app_dir)
     FileUtils.cp_r(Dir.glob("app/*"), build_app_dir)
   end
 
-  # Compile the Ruby application with Opal
-  def compile_opal_application
-    puts "Compiling Ruby application with Opal..."
-
-    # Récupérer le chemin du fichier source
-    source_file = "#{@build_dir}/app/index.rb"
-
-    if @production
-      debug=''
-    else
-      debug='--enable-source-location '
-    end
-
-    opal_compile_app = "cat #{source_file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/index.js"
-    system(opal_compile_app)
-
-    if $?.exitstatus == 0
-      puts "Opal compilation successful! #{@opal_dir}/index.js created."
-    else
-      abort("Error during Opal compilation.")
-    end
-  end
-
   # Compile the Ruby application with WASM
   def compile_wasm
     puts "\n== Compiling with Ruby WASM =="
 
-    # Download or update Ruby WASM
+    # Download or update Ruby WASM files
     process_ruby_wasm
-
-    # Download or update Ruby WASI TGZ
     process_ruby_wasi_tgz
 
-    # Compile the application to WASM
+    # Compile the app to WASM
     compile_app_to_wasm
 
-    # Modify the JavaScript files generated by WASM compilation
+    # Modify JS files generated by WASM
     modify_wasm_js_files
+
+    tag_content = []
+    tag_content << "./specific/wasm/wasm_init.rb"
+
+    Dir.entries('./sources').each do |file|
+      next if file.start_with?('.')
+      tag_content << "./sources/#{file}"
+    end
+
+    tag_content << "./app/index.rb"
+    add_script_tag_to_index(:wasm, tag_content, :ruby)
   end
 
-  # Process Ruby WASM (download or update)
+  # Download and extract Ruby WASM
   def process_ruby_wasm
     ruby_wasm_dest = "#{@wasm_dir}/ruby.wasm"
 
-    # Delete existing file if update mode is enabled
     if @update_mode && File.exist?(ruby_wasm_dest)
       puts "Option --update enabled, deleting existing file #{ruby_wasm_dest}..."
       File.delete(ruby_wasm_dest)
     end
 
-    # Download Ruby WASM if it doesn't exist
     unless File.exist?(ruby_wasm_dest)
       wasm_archive = "#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
       download_and_extract_wasm(RUBY_WASM_URL, wasm_archive, ruby_wasm_dest)
@@ -177,7 +175,7 @@ class BuilderScript
     end
   end
 
-  # Download and extract WASM archive
+  # Download and extract a WASM archive
   def download_and_extract_wasm(url, archive_path, dest_path)
     puts "Downloading Ruby WASM..."
     FileUtils.mkdir_p(File.dirname(archive_path))
@@ -191,17 +189,15 @@ class BuilderScript
     puts "Ruby WASM downloaded and moved to #{dest_path}"
   end
 
-  # Process Ruby WASI TGZ (download or update)
+  # Download and extract Ruby WASI TGZ
   def process_ruby_wasi_tgz
     wasi_tgz = "#{@wasm_dir}/ruby-3.4-wasm-wasi-2.7.1.tgz"
 
-    # Delete existing file if update mode is enabled
     if @update_mode && File.exist?(wasi_tgz)
       puts "Option --update enabled, deleting existing file #{wasi_tgz}..."
       File.delete(wasi_tgz)
     end
 
-    # Download Ruby WASI TGZ if it doesn't exist
     unless File.exist?(wasi_tgz)
       download_and_extract_wasi_tgz(RUBY_WASI_TGZ_URL, wasi_tgz)
     else
@@ -209,7 +205,7 @@ class BuilderScript
     end
   end
 
-  # Download and extract WASI TGZ
+  # Download and extract a WASI TGZ archive
   def download_and_extract_wasi_tgz(url, tgz_path)
     puts "Downloading ruby-3.4-wasm-wasi-2.7.1.tgz..."
     FileUtils.mkdir_p(File.dirname(tgz_path))
@@ -220,6 +216,7 @@ class BuilderScript
     puts "ruby-3.4-wasm-wasi-2.7.1.tgz downloaded and extracted in the #{@wasm_dir} directory."
   end
 
+  # Compile the Ruby runtime to WASM
   def compile_app_to_wasm
     puts "Compiling Ruby runtime to WebAssembly..."
     output_path = "#{@wasm_dir}/ruby_runtime.wasm"
@@ -233,38 +230,25 @@ class BuilderScript
 
     if $?.exitstatus == 0
       puts "Ruby runtime successfully compiled to #{output_path}"
-      return true
     else
       abort("Error during Ruby runtime WASM compilation.")
     end
   end
 
-  # Modify the JavaScript files generated by WASM compilation
+  # Modify the generated JS files from WASM
   def modify_wasm_js_files
     package_dist_dir = "#{@wasm_dir}/package/dist"
     iife_js_file_path = "#{package_dist_dir}/browser.script.iife.js"
     umd_js_file_path = "#{package_dist_dir}/browser.script.umd.js"
 
-    # Make sure the package directory structure exists
     FileUtils.mkdir_p(File.dirname(iife_js_file_path))
     FileUtils.mkdir_p(File.dirname(umd_js_file_path))
 
-    # Modify IIFE JavaScript file
-    modify_js_file(
-      iife_js_file_path,
-      /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
-      'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);'
-    )
-
-    # Modify UMD JavaScript file
-    modify_js_file(
-      umd_js_file_path,
-      /const response = fetch\(`https:\/\/cdn\.jsdelivr\.net\/npm\/\$\{pkg\.name\}@\$\{pkg\.version\}\/dist\/ruby\+stdlib\.wasm`\);/,
-      'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);'
-    )
+    modify_js_file(iife_js_file_path, /const response = fetch\(`https:\/\/cdn.*?ruby\+stdlib\.wasm`\);/, 'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);')
+    modify_js_file(umd_js_file_path, /const response = fetch\(`https:\/\/cdn.*?ruby\+stdlib\.wasm`\);/, 'const response = fetch(`./wasm/package/dist/ruby+stdlib.wasm`);')
   end
 
-  # Modify a JavaScript file with the given pattern and replacement
+  # Modify a JS file with a specific pattern
   def modify_js_file(file_path, pattern, replacement)
     if File.exist?(file_path)
       puts "Modifying JavaScript file #{file_path}..."
@@ -284,16 +268,28 @@ class BuilderScript
     puts "To use the WASM version: open #{@build_dir}/index_wasm.html in your browser."
   end
 
-  # Helper method to download a file from a URL
+  # Download a remote file
   def download_file(url, destination)
     URI.open(url) do |remote|
       File.open(destination, "wb") { |file| file.write(remote.read) }
     end
   end
-end
 
-# Run the script with command line arguments
-# if __FILE__ == $0
-#   builder = BuilderScript.new(ARGV)
-#   builder.run
-# end
+  # Replace the index.html based on the desired mode
+  def wanted_mode(mode)
+    puts "wanted mode is #{mode}"
+    source_file = "build/index_#{mode}.html"
+    destination_file = 'build/index.html'
+
+    begin
+      content = File.read(source_file)
+      File.write(destination_file, content)
+      puts "Successfully copied #{source_file} to #{destination_file}"
+    rescue Errno::ENOENT => e
+      puts "Error: #{e.message}"
+      puts "Make sure the source file #{source_file} exists and the build directory is present."
+    rescue => e
+      puts "An unexpected error occurred: #{e.message}"
+    end
+  end
+end

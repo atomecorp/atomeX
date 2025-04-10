@@ -7,9 +7,9 @@ require 'fileutils'
 class HtmlBuilder
   def initialize(options = {})
     # Initialize paths and directories
-    @base_path     = options[:base] || 'html_sources/index.html'
-    @target_paths  = options[:targets] || ['html_sources/index_opal.html', 'html_sources/index_wasm.html']
-    @output_dir    = options[:output_dir] || 'build'
+    @base_path = options[:base] || 'html_sources/index.html'
+    @target_paths = options[:targets] || ['html_sources/index_opal.html', 'html_sources/index_wasm.html']
+    @output_dir = options[:output_dir] || 'build'
     @create_symlinks = options[:symlink] || false
 
     # Create necessary build directories
@@ -120,6 +120,7 @@ class HtmlBuilder
   def copy_static_assets
     copy_directory('app', @output_dir)
     copy_directory('sources', @output_dir)
+    copy_directory('specific', @output_dir)
   end
 
   # Helper method to copy a directory if it exists
