@@ -1,40 +1,82 @@
+
 # atomeX
 
-Un environnement hybride de développement Ruby qui prend en charge à la fois la compilation via Opal (Ruby vers JavaScript) et Ruby WebAssembly.
+> Hybrid Ruby development environment — Opal (Ruby → JavaScript) & Ruby WebAssembly.
 
-## Pour commencer
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Ruby](https://img.shields.io/badge/Ruby-3.0%2B-red)](https://www.ruby-lang.org/)
+[![WebAssembly](https://img.shields.io/badge/WebAssembly-supported-blueviolet)](https://webassembly.org/)
 
-### Prérequis
+---
 
-- Ruby (version 3.0 ou supérieure recommandée)
+atomeX is a hybrid Ruby development environment designed to compile Ruby code into JavaScript using [Opal](https://opalrb.com/) or run Ruby directly in WebAssembly (WASM).
+
+This environment provides a clean structure to build portable Ruby applications for the web.
+
+---
+
+## Download
+
+Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/atomeX.git
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Ruby (version 3.0 or higher recommended)
 - Bundler
-- npm (optionnel, pour certaines fonctionnalités)
 
 ### Installation
 
 ```bash
-# Cloner le dépôt
-git clone https://github.com/yourusername/atomeX.git
-cd atomeX
-
-# Installer les dépendances
-bundle install
+git clone https://github.com/atomecorp/atomeX.git
 ```
 
-### Compilation et exécution
+---
+
+## Build and Run
+
+### Build the project:
 
 ```bash
-# Compiler le projet
+cd atomeX
+```
+Optional: modify the app/index.rb file to your needs, if you want 
+```bash
 ruby builder.rb
-
-# Compiler et lancer le serveur de développement
-ruby builder.rb --serve
 ```
 
-Ouvrez l'un des fichiers suivants dans votre navigateur:
-- `build/index_opal.html` (version JavaScript)
-- `build/index_wasm.html` (version WebAssembly)
+### Optional: you can build a specific target:
+Possible optiopn are `--opal` or `--wasm`.
+```bash
+ruby builder.rb --wasm
+```
+
+---
+
+## Open in your Browser:
+
+```bash
+cd build 
+ruby -run -e httpd . -p 9292
+```
+
+---
 
 ## Documentation
 
-Pour plus de détails sur la structure du projet et l'API, consultez [DOCUMENTATION.md](DOCUMENTATION.md).
+For full details about the project structure and API usage, see:
+
+[DOCUMENTATION.md](DOCUMENTATION.md)
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
