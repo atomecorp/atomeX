@@ -30,7 +30,7 @@ class BuilderScript
     create_build_directories
 
     # Run Opal compilation unless skipped
-    compile_opal
+    compile_opal(true)
 
     # Run WASM compilation unless skipped
     compile_wasm
@@ -86,7 +86,7 @@ class BuilderScript
   end
 
   # Compile the Ruby application with Opal
-  def compile_opal
+  def compile_opal(build_mode=false)
     puts "\n== Compiling with Opal =="
     tag_content = []
 
@@ -107,9 +107,11 @@ class BuilderScript
     # Compile application entry point
     opal_compiler("app/index.rb")
     tag_content << "./opal/index.js"
+    if build_mode
+      # Add script tags to HTML
+      add_script_tag_to_index(:opal, tag_content)
+    end
 
-    # Add script tags to HTML
-    add_script_tag_to_index(:opal, tag_content)
   end
 
   # Compile a Ruby file with Opal

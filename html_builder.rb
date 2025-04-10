@@ -121,6 +121,9 @@ class HtmlBuilder
     copy_directory('app', @output_dir)
     copy_directory('sources', @output_dir)
     copy_directory('specific', @output_dir)
+    copy_directory('js', @output_dir)
+    copy_directory('css', @output_dir)
+    copy_directory('medias', @output_dir)
   end
 
   # Helper method to copy a directory if it exists
@@ -379,4 +382,27 @@ if __FILE__ == $0
     puts e.backtrace
     exit 1
   end
+end
+
+
+# copy favicon.ico
+#!/usr/bin/env ruby
+
+# Chemins des fichiers
+source = 'favicon.ico'
+destination = 'build/favicon.ico'
+
+begin
+  # Copier le fichier
+  FileUtils.cp(source, destination)
+
+  puts "Fichier #{source} copié avec succès vers #{destination}"
+rescue Errno::ENOENT => e
+  if e.message.include?(source)
+    puts "Erreur: Le fichier source #{source} n'existe pas"
+  else
+    puts "Erreur: #{e.message}"
+  end
+rescue => e
+  puts "Erreur inattendue: #{e.message}"
 end
