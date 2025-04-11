@@ -15,22 +15,9 @@ This environment provides a clean structure to build portable Ruby applications 
 
 ---
 
-## Download
-
-Clone the repository:
-
-```bash
-git clone https://github.com/yourusername/atomeX.git
-```
-
----
 
 ## Getting Started
 
-### Prerequisites
-
-- Ruby (version 3.0 or higher recommended)
-- Bundler
 
 ### Installation
 
@@ -38,6 +25,12 @@ git clone https://github.com/yourusername/atomeX.git
 git clone https://github.com/atomecorp/atomeX.git
 ```
 
+
+### first time execution
+
+```bash
+./setup.sh
+```
 ---
 
 ## Build and Run
