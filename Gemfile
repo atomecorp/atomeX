@@ -15,3 +15,6 @@ gem "webrick"
 gem "nokogiri"
 gem "fileutils"
 gem "open-uri"
+gem "eventmachine"
+gem "em-websocket"
+
