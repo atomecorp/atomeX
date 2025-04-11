@@ -9,7 +9,13 @@ require 'open-uri'
 
 class BuilderScript
   # Constants for WASM URLs
+  # RUBY_WASM_URL: Contains the main Ruby interpreter compiled to WebAssembly.
+  # This archive provides the core Ruby binary that will be used to execute Ruby code in the browser.
   RUBY_WASM_URL = "https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
+
+  # RUBY_WASI_TGZ_URL: Contains WASI (WebAssembly System Interface) components and additional libraries.
+  # These are required runtime dependencies that allow the Ruby WASM binary to interact with the system
+  # environment and provide standard library features within the browser.
   RUBY_WASI_TGZ_URL = "https://github.com/ruby/ruby.wasm/releases/download/2.7.1/ruby-3.4-wasm-wasi-2.7.1.tgz"
 
   def initialize(*args)
