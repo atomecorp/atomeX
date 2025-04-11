@@ -1,25 +1,23 @@
-add  Tauri
+# TODO
 
-make require simpler use require ./my_file instead of require './app/myfile'
+## Refactoring
+- [ ] Simplify the file generation
 
-make the project architecture more user friendly hshowing only the ncessarily files
 
-create a gem
+## Features
+- [ ] Add Tauri framework for desktop applications (#12)
+- [ ] make require simpler use require ./my_file instead of require './app/myfile'
+- [ ] make the project architecture more user friendly showing only the essential files
+- [ ] create a gem
+- [ ] Server mode with Roda
+- [ ] add universal atome object  and concept
+- [ ] gem creation of atome
+- [ ] add tests
 
-Display version info for Opal, context, etc.
 
-unified Opal /Wasm code with DOM acess
+## Bugs
+- [ ] ...
 
-Server mode with Roda
 
-create Universal atome Object
 
-gem creation of atome
 
-add nokogiri 
-
-add atome object  and concept
-
-add tests
-
-unify Opal and wasm rendering

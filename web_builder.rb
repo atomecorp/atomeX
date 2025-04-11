@@ -19,6 +19,47 @@ class BuilderScript
     @build_dir = "build"
     @opal_dir = "#{@build_dir}/opal"
     @wasm_dir = "#{@build_dir}/wasm"
+
+    # Extract version and file information from URLs
+    parse_wasm_urls
+  end
+
+  # Extract version and path information from the WASM URLs
+  def parse_wasm_urls
+    # Extract the filename from the WASM URL
+    @ruby_wasm_filename = File.basename(RUBY_WASM_URL)
+
+    # Extract the directory name (without the archive extension)
+    # Handle various archive extensions (.tar.gz, .tgz, etc.)
+    @ruby_wasm_dirname = @ruby_wasm_filename.sub(/\.(tar\.gz|tgz|tar)$/, '')
+
+    # Set a default Ruby version if we can't extract it
+    begin
+      if @ruby_wasm_dirname =~ /ruby-(\d+\.\d+)/
+        @ruby_wasm_version = $1
+      else
+        @ruby_wasm_version = "3.4" # Default version
+      end
+    rescue
+      @ruby_wasm_version = "3.4" # Default version
+    end
+
+    # Extract the filename from the WASI URL
+    @ruby_wasi_filename = File.basename(RUBY_WASI_TGZ_URL)
+
+    # Try to extract version information, but use defaults if pattern doesn't match
+    begin
+      if @ruby_wasi_filename =~ /ruby-\d+\.\d+-wasm-wasi-(\d+\.\d+\.\d+)/
+        @ruby_wasi_version = $1
+      else
+        @ruby_wasi_version = "2.7.1" # Default version
+      end
+    rescue
+      @ruby_wasi_version = "2.7.1" # Default version
+    end
+
+    puts "Using Ruby WASM filename: #{@ruby_wasm_filename}, extracted directory: #{@ruby_wasm_dirname}"
+    puts "Using Ruby WASI filename: #{@ruby_wasi_filename}"
   end
 
   # Main execution method
@@ -170,7 +211,7 @@ class BuilderScript
     end
 
     unless File.exist?(ruby_wasm_dest)
-      wasm_archive = "#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz"
+      wasm_archive = "#{@wasm_dir}/#{@ruby_wasm_filename}"
       download_and_extract_wasm(RUBY_WASM_URL, wasm_archive, ruby_wasm_dest)
     else
       puts "Ruby WASM file already exists, skipping download."
@@ -179,21 +220,60 @@ class BuilderScript
 
   # Download and extract a WASM archive
   def download_and_extract_wasm(url, archive_path, dest_path)
-    puts "Downloading Ruby WASM..."
+    puts "Downloading Ruby WASM from #{url}..."
     FileUtils.mkdir_p(File.dirname(archive_path))
     download_file(url, archive_path)
 
     puts "Extracting #{archive_path}..."
-    system("tar xfz #{archive_path} -C #{@wasm_dir}")
+
+    # Handle different archive types
+    extract_cmd = case archive_path
+                  when /\.tar\.gz$/, /\.tgz$/
+                    "tar xfz #{archive_path} -C #{@wasm_dir}"
+                  when /\.tar$/
+                    "tar xf #{archive_path} -C #{@wasm_dir}"
+                  when /\.zip$/
+                    "unzip #{archive_path} -d #{@wasm_dir}"
+                  else
+                    # Default to tar.gz
+                    "tar xfz #{archive_path} -C #{@wasm_dir}"
+                  end
+
+    system(extract_cmd)
 
     FileUtils.mkdir_p(File.dirname(dest_path))
-    FileUtils.mv("#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr/local/bin/ruby", dest_path)
-    puts "Ruby WASM downloaded and moved to #{dest_path}"
+
+    # Try multiple common paths for finding the ruby binary
+    possible_paths = [
+      "#{@wasm_dir}/#{@ruby_wasm_dirname}/usr/local/bin/ruby",
+      "#{@wasm_dir}/#{@ruby_wasm_dirname}/bin/ruby",
+      "#{@wasm_dir}/usr/local/bin/ruby",
+      "#{@wasm_dir}/bin/ruby"
+    ]
+
+    ruby_binary_path = possible_paths.find { |path| File.exist?(path) }
+
+    if ruby_binary_path
+      FileUtils.mv(ruby_binary_path, dest_path)
+      puts "Ruby WASM found at #{ruby_binary_path} and moved to #{dest_path}"
+    else
+      puts "Warning: Ruby binary not found at any expected paths"
+      puts "Searching for ruby binary in extracted directory..."
+
+      # Attempt to find the ruby binary in the extracted directory
+      ruby_binary = Dir.glob("#{@wasm_dir}/**/bin/ruby").first
+      if ruby_binary
+        FileUtils.mv(ruby_binary, dest_path)
+        puts "Ruby WASM found at #{ruby_binary} and moved to #{dest_path}"
+      else
+        abort("Error: Ruby binary not found in extracted archive.")
+      end
+    end
   end
 
   # Download and extract Ruby WASI TGZ
   def process_ruby_wasi_tgz
-    wasi_tgz = "#{@wasm_dir}/ruby-3.4-wasm-wasi-2.7.1.tgz"
+    wasi_tgz = "#{@wasm_dir}/#{@ruby_wasi_filename}"
 
     if @update_mode && File.exist?(wasi_tgz)
       puts "Option --update enabled, deleting existing file #{wasi_tgz}..."
@@ -203,19 +283,33 @@ class BuilderScript
     unless File.exist?(wasi_tgz)
       download_and_extract_wasi_tgz(RUBY_WASI_TGZ_URL, wasi_tgz)
     else
-      puts "ruby-3.4-wasm-wasi-2.7.1.tgz already exists, skipping download."
+      puts "#{@ruby_wasi_filename} already exists, skipping download."
     end
   end
 
   # Download and extract a WASI TGZ archive
   def download_and_extract_wasi_tgz(url, tgz_path)
-    puts "Downloading ruby-3.4-wasm-wasi-2.7.1.tgz..."
+    puts "Downloading #{@ruby_wasi_filename} from #{url}..."
     FileUtils.mkdir_p(File.dirname(tgz_path))
     download_file(url, tgz_path)
 
     puts "Extracting #{tgz_path}..."
-    system("tar xfz #{tgz_path} -C #{@wasm_dir}")
-    puts "ruby-3.4-wasm-wasi-2.7.1.tgz downloaded and extracted in the #{@wasm_dir} directory."
+
+    # Handle different archive types
+    extract_cmd = case tgz_path
+                  when /\.tar\.gz$/, /\.tgz$/
+                    "tar xfz #{tgz_path} -C #{@wasm_dir}"
+                  when /\.tar$/
+                    "tar xf #{tgz_path} -C #{@wasm_dir}"
+                  when /\.zip$/
+                    "unzip #{tgz_path} -d #{@wasm_dir}"
+                  else
+                    # Default to tar.gz
+                    "tar xfz #{tgz_path} -C #{@wasm_dir}"
+                  end
+
+    system(extract_cmd)
+    puts "#{@ruby_wasi_filename} downloaded and extracted in the #{@wasm_dir} directory."
   end
 
   # Compile the Ruby runtime to WASM
@@ -223,9 +317,26 @@ class BuilderScript
     puts "Compiling Ruby runtime to WebAssembly..."
     output_path = "#{@wasm_dir}/ruby_runtime.wasm"
 
-    wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm " +
-      "--dir ./#{@wasm_dir}/ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr " +
-      "-o #{output_path}"
+    # Find the usr directory path to use in compilation
+    usr_dirs = [
+      "#{@wasm_dir}/#{@ruby_wasm_dirname}/usr",
+      "#{@wasm_dir}/usr",
+      Dir.glob("#{@wasm_dir}/**/usr").first
+    ].compact
+
+    usr_dir = usr_dirs.find { |dir| Dir.exist?(dir) }
+
+    if usr_dir.nil?
+      puts "Warning: Could not find usr directory in extracted archive."
+      puts "Trying to compile without specifying usr directory..."
+
+      wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm -o #{output_path}"
+    else
+      puts "Found usr directory at: #{usr_dir}"
+      wasm_compile_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm " +
+        "--dir ./#{usr_dir}::/usr " +
+        "-o #{output_path}"
+    end
 
     puts "Executing: #{wasm_compile_cmd}"
     system(wasm_compile_cmd)
@@ -233,7 +344,22 @@ class BuilderScript
     if $?.exitstatus == 0
       puts "Ruby runtime successfully compiled to #{output_path}"
     else
-      abort("Error during Ruby runtime WASM compilation.")
+      puts "Error during Ruby runtime WASM compilation with usr directory."
+
+      if usr_dir
+        puts "Trying alternative compilation without usr directory..."
+        alt_cmd = "bundle exec rbwasm pack #{@wasm_dir}/ruby.wasm -o #{output_path}"
+        puts "Executing: #{alt_cmd}"
+        system(alt_cmd)
+
+        if $?.exitstatus == 0
+          puts "Ruby runtime successfully compiled to #{output_path} using alternative method"
+        else
+          abort("Error during Ruby runtime WASM compilation using both methods.")
+        end
+      else
+        abort("Error during Ruby runtime WASM compilation.")
+      end
     end
   end
 
