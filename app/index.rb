@@ -2,21 +2,19 @@
 
 doc = JS.global[:document]
 body = doc[:body]
-
-
 container = doc.createElement('div')
 container[:id] = 'chant-container'
 container[:style] = "width: 100%; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); color: white; font-family: Arial, sans-serif;"
-
 title = doc.createElement('h1')
 title[:id] = 'main-title'
-title[:innerText] = "atomeX"
+title[:innerText] = "atome"
 title[:style] = "font-size: 3rem; margin-bottom: 1rem; opacity: 0; transition: opacity 2s, transform 2s; transform: translateY(-50px);"
 
 subtitle = doc.createElement('h2')
 subtitle[:id] = 'subtitle'
-subtitle[:innerText] = "State of the art creation"
+subtitle[:innerText] = "State of the art creations"
 subtitle[:style] = "font-size: 1.5rem; margin-bottom: 2rem; opacity: 0; transition: opacity 2s 0.5s, transform 2s 0.5s; transform: translateY(-50px);"
+
 
 button = doc.createElement('button')
 button[:id] = 'cta-button'

@@ -7,14 +7,11 @@ source "https://rubygems.org"
 
 # Gems nécessaires
 gem 'base64'
-gem 'listen'
+# gem 'listen'
 gem 'ruby_wasm'
 gem 'logger'
-gem "opal", "~> 1.7.2"
-gem "webrick"
+gem "opal"
 gem "nokogiri"
 gem "fileutils"
-gem "open-uri"
-gem "eventmachine"
-gem "em-websocket"
+
 

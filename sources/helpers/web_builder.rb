@@ -22,7 +22,7 @@ class BuilderScript
     # Parse command line options
     @production = args.include?(:production)
     # Initialize build paths
-    @build_dir = "build"
+    @build_dir = "../../build"
     @opal_dir = "#{@build_dir}/opal"
     @wasm_dir = "#{@build_dir}/wasm"
 
@@ -106,7 +106,7 @@ class BuilderScript
 
   # Add <script> tags dynamically to an HTML file
   def add_script_tag_to_index(name, files, ruby_type=nil)
-    file_path = "build/index_#{name}.html"
+    file_path = "../../build/index_#{name}.html"
     tags = []
 
     files.each do |file|
@@ -132,55 +132,98 @@ class BuilderScript
     end
   end
 
-  # Compile the Ruby application with Opal
-  def compile_opal(build_mode=false)
+  # # Compile the Ruby application with Opal
+  # def compile_opal(build_mode=false)
+  #   puts "\n== Compiling with Opal =="
+  #   tag_content = []
+  #
+  #   # Compile Opal initializer
+  #   opal_compiler("../rubies_specific/opal/opal_init.rb", true)
+  #   tag_content << "./opal/opal_init.js"
+  #
+  #   # Compile all source files
+  #   Dir.entries('../rubies_helpers').each do |file|
+  #     next if file.start_with?('.')
+  #     opal_compiler("../rubies_helpers/#{file}")
+  #     tag_content << "./opal/#{File.basename(file, ".*")}.js"
+  #   end
+  #
+  #
+  #   # Compile application entry point
+  #   opal_compiler("../../app/index.rb")
+  #   tag_content << "./opal/index.js"
+  #   if build_mode
+  #     # Add script tags to HTML
+  #     add_script_tag_to_index(:opal, tag_content)
+  #   end
+  #
+  # end
+  #
+  # # Compile a Ruby file with Opal
+  # def opal_compiler(file, add_opal = false)
+  #   debug = @production ? '' : '--enable-source-location '
+  #
+  #   if add_opal
+  #     opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
+  #   else
+  #     opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
+  #   end
+  #
+  #   system(opal_cmd)
+  # end
+
+  # Compile only if needed
+  # This method checks if the output file is already up-to-date before compiling.
+  # It uses the Opal compiler to generate JavaScript from Ruby source files.
+  def opal_compiler(file, add_opal = false)
+
+    src = File.expand_path(file, __dir__)
+    basename = File.basename(src, ".*")
+    out = File.join(@opal_dir, "#{basename}.js")
+
+    # if the output file already exists and is up-to-date, skip compilation
+    if File.exist?(out) && File.mtime(out) >= File.mtime(src)
+      puts "→ #{basename}.js déjà à jour, compilation SKIPPÉE"
+      return
+    end
+
+    debug = add_opal ? "-r opal-parser --compile" : "--no-opal --compile"
+    opal_cmd = "bundle exec opal #{debug} #{src} > #{out}"
+
+    puts "Compiling #{src} → #{out}"
+    system(opal_cmd) or warn "⚠️ Échec de la compilation de #{src}"
+  end
+
+  # your main method remains unchanged
+  def compile_opal(build_mode = false)
     puts "\n== Compiling with Opal =="
     tag_content = []
 
     # Compile Opal initializer
-    opal_compiler("specific/opal/opal_init.rb", true)
+    opal_compiler("../rubies_specific/opal/opal_init.rb", true)
     tag_content << "./opal/opal_init.js"
 
     # Compile all source files
-    Dir.entries('./sources').each do |file|
+    Dir.entries('../rubies_helpers').each do |file|
       next if file.start_with?('.')
-      opal_compiler("sources/#{file}")
+      opal_compiler("../rubies_helpers/#{file}")
       tag_content << "./opal/#{File.basename(file, ".*")}.js"
     end
 
-    # Copy app directory
-    copy_app_directory
-
     # Compile application entry point
-    opal_compiler("app/index.rb")
+    opal_compiler("../../app/index.rb")
     tag_content << "./opal/index.js"
-    if build_mode
-      # Add script tags to HTML
-      add_script_tag_to_index(:opal, tag_content)
-    end
 
+    # Si on est en build complet, on injecte les <script> dans le HTML
+    add_script_tag_to_index(:opal, tag_content) if build_mode
   end
 
-  # Compile a Ruby file with Opal
-  def opal_compiler(file, add_opal = false)
-    debug = @production ? '' : '--enable-source-location '
-
-    if add_opal
-      opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
-    else
-      opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
-    end
-
-    system(opal_cmd)
-  end
-
-  # Copy the app directory to build directory
   def copy_app_directory
+
     build_app_dir = "#{@build_dir}/app"
     FileUtils.mkdir_p(build_app_dir) unless Dir.exist?(build_app_dir)
-    FileUtils.cp_r(Dir.glob("app/*"), build_app_dir)
+    FileUtils.cp_r(Dir.glob("../../app/*"), build_app_dir)
   end
-
   # Compile the Ruby application with WASM
   def compile_wasm
     puts "\n== Compiling with Ruby WASM =="
@@ -196,11 +239,11 @@ class BuilderScript
     modify_wasm_js_files
 
     tag_content = []
-    tag_content << "./specific/wasm/wasm_init.rb"
+    tag_content << "./rubies_specific/wasm/wasm_init.rb"
 
-    Dir.entries('./sources').each do |file|
+    Dir.entries('../rubies_helpers').each do |file|
       next if file.start_with?('.')
-      tag_content << "./sources/#{file}"
+      tag_content << "./rubies_helpers/#{file}"
     end
 
     tag_content << "./app/index.rb"
@@ -412,8 +455,9 @@ class BuilderScript
   # Replace the index.html based on the desired mode
   def wanted_mode(mode)
     puts "wanted mode is #{mode}"
-    source_file = "build/index_#{mode}.html"
-    destination_file = 'build/index.html'
+    File.write('../../build/mode.txt', mode)
+    source_file = "../../build/index_#{mode}.html"
+    destination_file = '../../build/index.html'
 
     begin
       content = File.read(source_file)

@@ -7,9 +7,9 @@ require 'fileutils'
 class HtmlBuilder
   def initialize(options = {})
     # Initialize paths and directories
-    @base_path = options[:base] || 'html_sources/index.html'
-    @target_paths = options[:targets] || ['html_sources/index_opal.html', 'html_sources/index_wasm.html']
-    @output_dir = options[:output_dir] || 'build'
+    @base_path = options[:base] || '../web/index.html'
+    @target_paths = options[:targets] || ['../web/index_opal.html', '../web/index_wasm.html']
+    @output_dir = options[:output_dir] || '../../build'
     @create_symlinks = options[:symlink] || false
 
     # Create necessary build directories
@@ -31,21 +31,12 @@ class HtmlBuilder
     copy_static_assets
   end
 
-  private
-
-  # Create all necessary build directories
-  def create_build_directories
-    FileUtils.mkdir_p(File.join(@output_dir, 'opal'))
-    FileUtils.mkdir_p(File.join(@output_dir, 'wasm'))
-    puts "Created build directories in '#{@output_dir}'"
-  end
-
-  # Process a single target file and merge it with the base
   def process_target_file(base_doc, target_path)
     target_name = File.basename(target_path)
     output_path = File.join(@output_dir, target_name)
 
-    puts "Processing #{target_path} to create #{output_path}..."
+    # puts "Processing #{target_path} to create #{output_path}..."
+    # puts "Processing #{target_path} base doc #{base_doc}..."
 
     # Read and parse the target HTML file
     target_content = File.read(target_path)
@@ -61,21 +52,6 @@ class HtmlBuilder
     create_symlink(output_path) if @create_symlinks
 
     puts "#{output_path} was successfully created."
-  end
-
-  # Write HTML document to file with proper formatting
-  def write_html_file(doc, output_path)
-    File.write(output_path, doc.to_html(
-      save_with: Nokogiri::XML::Node::SaveOptions::FORMAT |
-        Nokogiri::XML::Node::SaveOptions::AS_HTML
-    ))
-  end
-
-  # Create symlink if the option is enabled
-  def create_symlink(output_path)
-    symlink_name = "#{output_path}.link"
-    FileUtils.ln_sf(output_path, symlink_name)
-    puts "Created symlink: #{symlink_name} -> #{output_path}"
   end
 
   # Parse HTML content safely
@@ -116,14 +92,65 @@ class HtmlBuilder
     format_document(merged_doc)
   end
 
+  private
+
+  # Create all necessary build directories
+  def create_build_directories
+    FileUtils.mkdir_p(File.join(@output_dir, 'opal'))
+    FileUtils.mkdir_p(File.join(@output_dir, 'wasm'))
+    puts "Created build directories in '#{@output_dir}'"
+  end
+
+  # Process a single target file and merge it with the base
+  # def process_target_file(base_doc, target_path)
+  #   target_name = File.basename(target_path)
+  #   output_path = File.join(@output_dir, target_name)
+  #
+  #   puts "Processing #{target_path} to create #{output_path}..."
+  #
+  #   # Read and parse the target HTML file
+  #   target_content = File.read(target_path)
+  #   target_doc = parse_html(target_content)
+  #
+  #   # Merge the documents
+  #   merged_doc = merge_documents(base_doc.dup, target_doc)
+  #
+  #   # Write the formatted output to file
+  #   write_html_file(merged_doc, output_path)
+  #
+  #   # Create symlink if requested
+  #   create_symlink(output_path) if @create_symlinks
+  #
+  #   puts "#{output_path} was successfully created."
+  # end
+
+  # Write HTML document to file with proper formatting
+  def write_html_file(doc, output_path)
+    File.write(output_path, doc.to_html(
+      save_with: Nokogiri::XML::Node::SaveOptions::FORMAT |
+        Nokogiri::XML::Node::SaveOptions::AS_HTML
+    ))
+  end
+
+  # Create symlink if the option is enabled
+  def create_symlink(output_path)
+    symlink_name = "#{output_path}.link"
+    FileUtils.ln_sf(output_path, symlink_name)
+    puts "Created symlink: #{symlink_name} -> #{output_path}"
+  end
+
+
+
+
+
   # Copy static assets from app and sources folders
   def copy_static_assets
-    copy_directory('app', @output_dir)
-    copy_directory('sources', @output_dir)
-    copy_directory('specific', @output_dir)
-    copy_directory('js', @output_dir)
-    copy_directory('css', @output_dir)
-    copy_directory('medias', @output_dir)
+    copy_directory('../../app', @output_dir)
+    copy_directory('../rubies_specific', @output_dir)
+    copy_directory('../rubies_helpers', @output_dir)
+    copy_directory('../web/css', @output_dir)
+    copy_directory('../web/js', @output_dir)
+    copy_directory('../web/medias', @output_dir)
   end
 
   # Helper method to copy a directory if it exists
@@ -348,15 +375,15 @@ if __FILE__ == $0
   OptionParser.new do |opts|
     opts.banner = "Usage: ruby html_builder.rb [options]"
 
-    opts.on("-b", "--base PATH", "Path to base HTML file (default: html_sources/index.html)") do |b|
+    opts.on("-b", "--base PATH", "Path to base HTML file (default: ../html_sources/index.html)") do |b|
       options[:base] = b
     end
 
-    opts.on("-t", "--targets x,y,z", Array, "List of target HTML files separated by commas (default: html_sources/index_opal.html, html_sources/index_wasm.html)") do |t|
+    opts.on("-t", "--targets x,y,z", Array, "List of target HTML files separated by commas (default: ../html_sources/index_opal.html, html_sources/index_wasm.html)") do |t|
       options[:targets] = t
     end
 
-    opts.on("-o", "--output DIR", "Output directory (default: build)") do |o|
+    opts.on("-o", "--output DIR", "Output directory (default: ../../build)") do |o|
       options[:output_dir] = o
     end
 
@@ -386,23 +413,25 @@ end
 
 
 # copy favicon.ico
-#!/usr/bin/env ruby
 
-# Chemins des fichiers
-source = 'favicon.ico'
-destination = 'build/favicon.ico'
+# TODO use var for paths (../web/ et ../../build)
+
+
+
+# Define source and destination paths
+source = '../web/favicon.ico'
+destination = '../../build/favicon.ico'
 
 begin
   # Copier le fichier
   FileUtils.cp(source, destination)
 
-  puts "Fichier #{source} copié avec succès vers #{destination}"
 rescue Errno::ENOENT => e
   if e.message.include?(source)
-    puts "Erreur: Le fichier source #{source} n'existe pas"
+    puts "Error:  file #{source} not found"
   else
-    puts "Erreur: #{e.message}"
+    puts "Error: #{e.message}"
   end
 rescue => e
-  puts "Erreur inattendue: #{e.message}"
+  puts "Error unexpected: #{e.message}"
 end
