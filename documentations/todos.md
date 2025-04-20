@@ -6,6 +6,7 @@
 
 ## Features
 - [ ] Add Tauri framework for desktop applications (#12)
+- [ ] split to to build without running the server ou building Tauri
 - [ ] make require simpler use require ./my_file instead of require './app/myfile'
 - [ ] make the project architecture more user friendly showing only the essential files
 - [ ] create a gem
