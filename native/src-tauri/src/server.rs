@@ -60,7 +60,9 @@ fn get_watch_config() -> WatchConfig {
     // List of folders to watch
     let paths = vec![
         base_path.join("app"),
-        base_path.join("sources"),
+        base_path.join("sources/rubies_helpers"),
+        base_path.join("sources/rubies_specific"),
+        base_path.join("sources/web"),
     ];
 
     // Patterns to ignore

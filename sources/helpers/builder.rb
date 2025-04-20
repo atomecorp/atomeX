@@ -4,7 +4,6 @@
 require 'fileutils'
 require './web_builder.rb'
 require 'rbconfig'
-
 # Define file names
 html_builder = "html_builder.rb"
 

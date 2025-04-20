@@ -1,2 +1,2 @@
 cd  ../../sources/helpers
-ruby ./rebuilt.rb
+ruby ./rebuild.rb
