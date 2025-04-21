@@ -1,2 +1,2 @@
 cd  ../../sources/helpers
-ruby ./rebuild.rb
+ruby ./refresh.rb "$@"

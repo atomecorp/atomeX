@@ -7,7 +7,8 @@ container[:id] = 'chant-container'
 container[:style] = "width: 100%; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); color: white; font-family: Arial, sans-serif;"
 title = doc.createElement('h1')
 title[:id] = 'main-title'
-title[:innerText] = "atomeZ"
+title[:innerText] = "atome"
+
 title[:style] = "font-size: 3rem; margin-bottom: 1rem; opacity: 0; transition: opacity 2s, transform 2s; transform: translateY(-50px);"
 
 subtitle = doc.createElement('h2')

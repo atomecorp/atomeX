@@ -221,7 +221,7 @@ class BuilderScript
   def copy_app_directory
 
     build_app_dir = "#{@build_dir}/app"
-    # FileUtils.mkdir_p(build_app_dir) unless Dir.exist?(build_app_dir)
+    FileUtils.mkdir_p(build_app_dir) unless Dir.exist?(build_app_dir)
     FileUtils.cp_r(Dir.glob("../../app/*"), build_app_dir)
   end
   # Compile the Ruby application with WASM

@@ -1,6 +1,12 @@
 #!/bin/bash
 
-  default_mode=opal
+ if [ $# -eq 0 ]; then
+   default_mode="opal"
+ else
+   default_mode="$1"
+ fi
+
+ echo "Mode sélectionné : $default_mode"
 
 
 
