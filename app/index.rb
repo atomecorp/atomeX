@@ -1,6 +1,5 @@
 require 'test.rb'
-#
-# require './app/test.rb'
+
 puts "first message from index.rb"
 doc = JS.global[:document]
 body = doc[:body]
