@@ -206,15 +206,16 @@ def compile_opal(build_mode=false)
   end
 
   # Compile a Ruby file with Opal
- def opal_compiler(file, add_opal = false)
-   debug = @production ? '' : '--enable-source-location '
-   if add_opal
-     opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, '.*')}.js"
-   else
-     opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
-   end
-   system(opal_cmd)
- end
+  def opal_compiler(file, add_opal = false)
+    debug = @production ? '' : '--enable-source-location '
+    include_path = "-I ../../app "
+    if add_opal
+      opal_cmd = "bundle exec opal #{include_path}-r opal-parser --compile #{debug} #{file} > #{@opal_dir}/#{File.basename(file, '.*')}.js"
+    else
+      opal_cmd = "bundle exec opal #{include_path}--no-opal --compile #{debug} #{file} > #{@opal_dir}/#{File.basename(file, ".*")}.js"
+    end
+    system(opal_cmd)
+  end
 
   # Compile only if needed
   # This method checks if the output file is already up-to-date before compiling.
