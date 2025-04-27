@@ -1,63 +1,43 @@
-#claude
+# claude
 
-class DOMElement
+# Version ultra minimaliste pour Ruby WASM
+class Box
   attr_reader :element
 
-  def initialize(element_or_tag)
-    @element = element_or_tag.is_a?(String) ?
-                 JS.global[:document].createElement(element_or_tag) :
-                 element_or_tag
+  def initialize(tag = 'div')
+    @element = JS.global[:document].createElement(tag)
   end
 
-  # Méthodes pour définir les propriétés
-  def width(value)
-    @element[:style][:width] = "#{value}px"
-    self # Pour le chaînage
-  end
-
-  def height(value)
-    @element[:style][:height] = "#{value}px"
+  # Méthodes de style de base
+  def width(val)
+    @element[:style][:width] = "#{val}px"
     self
   end
 
-  def color(value)
-    @element[:style][:color] = value.is_a?(Symbol) ? value.to_s : value
+  def height(val)
+    @element[:style][:height] = "#{val}px"
     self
   end
 
-  def background(value)
-    @element[:style][:backgroundColor] = value.is_a?(Symbol) ? value.to_s : value
+  def color(val)
+    val_str = val.is_a?(Symbol) ? val.to_s : val
+    @element[:style][:color] = val_str
     self
   end
 
-  def text(value)
-    @element[:textContent] = value
+  def background(val)
+    val_str = val.is_a?(Symbol) ? val.to_s : val
+    @element[:style][:backgroundColor] = val_str
     self
   end
 
-  def html(value)
-    @element[:innerHTML] = value
+  def text(val)
+    @element[:textContent] = val
     self
   end
 
-  def id(value)
-    @element[:id] = value
-    self
-  end
-
-  def add_class(value)
-    @element[:classList].add(value)
-    self
-  end
-
-  def remove_class(value)
-    @element[:classList].remove(value)
-    self
-  end
-
-  # Manipulation du DOM
   def append_to(parent)
-    if parent.is_a?(DOMElement)
+    if parent.is_a?(Box)
       parent.element.appendChild(@element)
     else
       parent.appendChild(@element)
@@ -65,51 +45,63 @@ class DOMElement
     self
   end
 
-  def append_child(child)
-    if child.is_a?(DOMElement)
-      @element.appendChild(child.element)
-    else
-      @element.appendChild(child)
-    end
+  # Récupérer des valeurs
+  def get_width
+    @element[:style][:width]
+  end
+
+  def get_height
+    @element[:style][:height]
+  end
+
+  def copy_height_from(other_box)
+    @element[:style][:height] = other_box.get_height
     self
   end
 
-  # Gestionnaire d'événements
-  def on(event_name, &block)
-    @element.addEventListener(event_name, block)
+  # Événements simples
+  def on_click(&block)
+    @element.addEventListener('click', block)
     self
   end
-
-  # Propriétés dynamiques pour accéder directement aux styles
-  def method_missing(method_name, *args)
-    if args.empty?
-      # Getter
-      return @element[:style][method_name]
-    else
-      # Setter
-      @element[:style][method_name] = args.first
-      return self
-    end
-  end
 end
 
-# Fonction d'aide pour créer des éléments
-def box(tag = 'div')
-  DOMElement.new(tag)
+# Test simple
+title = Box.new('h1')
+title.text("Test Simple")
+title.color(:blue)
+title.append_to(JS.global[:document][:body])
+
+box1 = Box.new
+box1.width(100)
+    .height(100)
+    .color(:white)
+    .background(:red)
+    .text("Box 1")
+box1.append_to(JS.global[:document][:body])
+
+box2 = Box.new
+box2.width(200)
+    .color(:white)
+    .background(:green)
+    .text("Box 2")
+box2.append_to(JS.global[:document][:body])
+
+# Copier la hauteur
+box2.copy_height_from(box1)
+
+# Ajouter un texte d'info
+info = Box.new('p')
+info.text("La hauteur de la box 2 est maintenant égale à celle de la box 1")
+info.append_to(JS.global[:document][:body])
+
+# Événements
+box1.on_click do |e|
+  box1.background(:purple)
+  info.text(box2.height)
 end
 
-# Fonction d'aide pour sélectionner des éléments existants
-def select(selector)
-  element = JS.global[:document].querySelector(selector)
-  element ? DOMElement.new(element) : nil
+box2.on_click do |e|
+  box2.background(:yellow)
+  info.text("Box 2 cliquée!")
 end
-
-# Fonction d'aide pour sélectionner tous les éléments correspondants
-def select_all(selector)
-  elements = JS.global[:document].querySelectorAll(selector)
-  elements.map { |el| DOMElement.new(el) }
-end
-
-# Exemple d'utilisation:
-# b = box
-# b.width(100).height(100).color(:red).background(:blue).text("Hello World").append_to(JS.global[:document][:body])
