@@ -1,3 +1,5 @@
+require 'test.rb'
+
 # Initialisation
 
 doc = JS.global[:document]
