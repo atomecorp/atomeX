@@ -1,0 +1,1 @@
+puts 'ruby server initialized, v O.01'

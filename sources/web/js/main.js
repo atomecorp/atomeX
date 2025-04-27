@@ -1,3 +1,6 @@
+
+
+
 import { connectWebSocket } from './socket.js';
 
 document.addEventListener('DOMContentLoaded', () => {

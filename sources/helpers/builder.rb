@@ -61,4 +61,3 @@ if ARGV.include?('--launch')
   native_dir = File.expand_path("../../native", __dir__)
   system("cd #{native_dir} && cargo tauri dev -- -- --no-watch")
 end
-

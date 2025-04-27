@@ -6,6 +6,7 @@
 
 require 'fileutils'
 require 'open-uri'
+require 'opal'
 
 class BuilderScript
   # Constants for WASM URLs
@@ -132,8 +133,116 @@ class BuilderScript
     end
   end
 
-  # # Compile the Ruby application with Opal
-  # def compile_opal(build_mode=false)
+
+  def wrap_errors
+    begin
+      yield
+    rescue => e
+      frames = e.backtrace
+      # 1) ligne d'origine
+      msg  = "#{e.class} '#{e.message}' — #{frames[0]}\n"
+      # 2) méthode et appel
+      frames[1..2].each_with_index do |frame, idx|
+        if frame =~ /^-:(\d+):in `(.+)'/
+          line, meth = $1, $2
+          label      = idx.zero? ? "Methode :" : "Appel à la ligne :"
+          msg       << "#{label} #{meth}  line : #{line}\n"
+        end
+      end
+      # on logge tout ça en JS
+      `console.error(#{msg.inspect})`
+    end
+  end
+def build_opal_core
+    output_dir = @opal_dir
+    Dir.mkdir(output_dir) unless Dir.exist?(output_dir)
+  
+    # 1. Build opal.js
+    puts "[Info] Building opal.js..."
+    opal_core = Opal::Builder.build('opal').to_s
+    File.write("#{output_dir}/opal.js", opal_core)
+    puts "[Success] opal.js built."
+  
+    # 2. Build opal-js.js
+    puts "[Info] Building opal-js.js..."
+    opal_js = Opal::Builder.build('js')
+    File.write("#{output_dir}/opal-js.js", opal_js.to_s)
+    puts "[Success] opal-js.js built."
+  
+    # 3. Build opal-parser.js
+    puts "[Info] Building opal-parser.js..."
+    opal_parser = Opal::Builder.build('opal-parser').to_s
+    File.write("#{output_dir}/opal-parser.js", opal_parser)
+    puts "[Success] opal-parser.js built."
+  
+    puts "[DONE] All Opal core files generated in #{output_dir}!"
+  end
+  # Compile the Ruby application with Opal
+def compile_opal(build_mode=false)
+    puts "\n== Compiling with Opal =="
+  
+    # On build **une seule fois** le core d'Opal
+    build_opal_core
+  
+    tag_content = []
+  
+    # Compile Opal initializer
+    opal_compiler("../rubies_specific/opal/opal_init.rb", true)
+    tag_content << "./opal/opal_init.js"
+  
+    # Compile all source files
+    Dir.entries('../rubies_helpers').each do |file|
+      next if file.start_with?('.')
+      opal_compiler("../rubies_helpers/#{file}")
+      tag_content << "./opal/#{File.basename(file, ".*")}.js"
+    end
+  
+    # Compile application entry point
+    opal_compiler("../../app/index.rb")
+    tag_content << "./opal/index.js"
+  
+    # Add script tags to HTML
+    add_script_tag_to_index(:opal, tag_content) if build_mode
+  end
+
+  # Compile a Ruby file with Opal
+ def opal_compiler(file, add_opal = false)
+   debug = @production ? '' : '--enable-source-location '
+   if add_opal
+     opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, '.*')}.js"
+   else
+     opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
+   end
+   system(opal_cmd)
+ end
+
+  # Compile only if needed
+  # This method checks if the output file is already up-to-date before compiling.
+  # It uses the Opal compiler to generate JavaScript from Ruby source files.
+
+
+  #############
+  # def opal_compiler(file, add_opal = false)
+  #   src = File.expand_path(file, __dir__)
+  #   basename = File.basename(src, ".*")
+  #   out = File.join(@opal_dir, "#{basename}.js")
+  #
+  #   # if the output file already exists and is up-to-date, skip compilation
+  #   if File.exist?(out) && File.mtime(out) >= File.mtime(src)
+  #     puts "→ #{basename}.js déjà à jour, compilation SKIPPÉE"
+  #     return
+  #   end
+  #   debug = @production ? '' : '--enable-source-location '
+  #
+  #   option = add_opal ? "-r opal-parser --compile #{debug}" : "--no-opal --compile #{debug}"
+  #   opal_cmd = "bundle exec opal #{option} #{src} > #{out}"
+  #
+  #   puts "Compiling #{src} → #{out}"
+  #   system(opal_cmd) or warn "⚠️ Échec de la compilation de #{src}"
+  # end
+  #
+  # # your main method remains unchanged
+  # def compile_opal(build_mode = false)
   #   puts "\n== Compiling with Opal =="
   #   tag_content = []
   #
@@ -148,75 +257,13 @@ class BuilderScript
   #     tag_content << "./opal/#{File.basename(file, ".*")}.js"
   #   end
   #
-  #
   #   # Compile application entry point
   #   opal_compiler("../../app/index.rb")
   #   tag_content << "./opal/index.js"
-  #   if build_mode
-  #     # Add script tags to HTML
-  #     add_script_tag_to_index(:opal, tag_content)
-  #   end
   #
+  #   # Si on est en build complet, on injecte les <script> dans le HTML
+  #   add_script_tag_to_index(:opal, tag_content) if build_mode
   # end
-  #
-  # # Compile a Ruby file with Opal
-  # def opal_compiler(file, add_opal = false)
-  #   debug = @production ? '' : '--enable-source-location '
-  #
-  #   if add_opal
-  #     opal_cmd = "cat #{file} | bundle exec opal -r opal-parser --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
-  #   else
-  #     opal_cmd = "cat #{file} | bundle exec opal --no-opal --compile #{debug} - > #{@opal_dir}/#{File.basename(file, ".*")}.js"
-  #   end
-  #
-  #   system(opal_cmd)
-  # end
-
-  # Compile only if needed
-  # This method checks if the output file is already up-to-date before compiling.
-  # It uses the Opal compiler to generate JavaScript from Ruby source files.
-  def opal_compiler(file, add_opal = false)
-
-    src = File.expand_path(file, __dir__)
-    basename = File.basename(src, ".*")
-    out = File.join(@opal_dir, "#{basename}.js")
-
-    # if the output file already exists and is up-to-date, skip compilation
-    if File.exist?(out) && File.mtime(out) >= File.mtime(src)
-      puts "→ #{basename}.js déjà à jour, compilation SKIPPÉE"
-      return
-    end
-
-    debug = add_opal ? "-r opal-parser --compile" : "--no-opal --compile"
-    opal_cmd = "bundle exec opal #{debug} #{src} > #{out}"
-
-    puts "Compiling #{src} → #{out}"
-    system(opal_cmd) or warn "⚠️ Échec de la compilation de #{src}"
-  end
-
-  # your main method remains unchanged
-  def compile_opal(build_mode = false)
-    puts "\n== Compiling with Opal =="
-    tag_content = []
-
-    # Compile Opal initializer
-    opal_compiler("../rubies_specific/opal/opal_init.rb", true)
-    tag_content << "./opal/opal_init.js"
-
-    # Compile all source files
-    Dir.entries('../rubies_helpers').each do |file|
-      next if file.start_with?('.')
-      opal_compiler("../rubies_helpers/#{file}")
-      tag_content << "./opal/#{File.basename(file, ".*")}.js"
-    end
-
-    # Compile application entry point
-    opal_compiler("../../app/index.rb")
-    tag_content << "./opal/index.js"
-
-    # Si on est en build complet, on injecte les <script> dans le HTML
-    add_script_tag_to_index(:opal, tag_content) if build_mode
-  end
 
   def copy_app_directory
 
