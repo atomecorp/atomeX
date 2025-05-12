@@ -29,12 +29,18 @@ def box(params = {})
   element[:style][:width] = "#{params[:width]}px" if params[:width]
   element[:style][:height] = "#{params[:height]}px" if params[:height]
 
+
   # Couleur
   if params[:color]
-    color_value = params[:color].is_a?(Symbol) ? COLORS[params[:color]] : params[:color]
+    color_value = params[:color]
+
+    # Si c'est un symbole, essayer de le convertir en utilisant COLORS
+    if COLORS.has_key?(color_value.to_sym)
+      color_value = COLORS[color_value.to_sym]
+    end
+
     element[:style][:backgroundColor] = color_value
   end
-
   # Autres styles
   if params[:style].is_a?(Hash)
     params[:style].each do |prop, value|

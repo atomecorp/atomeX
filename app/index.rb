@@ -68,7 +68,7 @@ red_box = box({
                 id: 'red-box',
                 width: 100,
                 height: 100,
-                color: :red,
+                color: "#32cd32",
                 parent: shapes_area,
                 style: {
                   borderRadius: '10px',
@@ -163,20 +163,20 @@ animate_button.on(:click) do
   red_box.animate({
                     rotate: 45,
                     scale: 1.2,
-                    color: '#ff6347'
+                    color: :blue
                   })
 
   # Animer le cercle bleu
   blue_circle.animate({
                         scale: 1.2,
-                        color: '#1e90ff'
+                        color: :green
                       })
 
   # Animer la boîte verte
   green_box.animate({
                       rotate: -45,
                       scale: 1.2,
-                      color: '#32cd32'
+                      color: :red
                     })
 
   # Créer quelques particules
